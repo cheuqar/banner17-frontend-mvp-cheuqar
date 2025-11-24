@@ -98,5 +98,13 @@ The project uses Jest for unit testing.
 ## 📦 Deployment
 
 This app is deployed to Fly.io.
+
+### Deploying with Doppler (Recommended)
+Use the included script to deploy with secrets injected from Doppler:
+```bash
+./deploy-with-doppler.sh
+```
+
+### Manual Deployment
 *   **Configuration:** See `fly.toml` (note: `dockerfile` path is relative to this repo root).
 *   **Deployment:** The main project's `deploy-to-flyio.sh` script handles deployment by entering this directory.
