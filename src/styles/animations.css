@@ -1,0 +1,180 @@
+/**
+ * Animations CSS - Precision Monochrome Theme
+ *
+ * Feature: Smart Search UI Redesign
+ * Spec: specs/001-smart-search-ui-redesign/
+ *
+ * GPU-accelerated animations using transform and opacity only
+ * Respects user's reduced motion preference
+ */
+
+/* ==========================================================================
+   Page Load Animation (FR-031, FR-032)
+   ========================================================================== */
+
+/**
+ * fadeInUp: Property cards fade in from below with staggered delay
+ *
+ * FR-031: Staggered animation with 50ms delay increment per card
+ * FR-032: Opacity 0→1 and translateY 20px→0 over 400ms
+ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px); /* FR-032: 20px from below */
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/**
+ * Apply fadeInUp to property cards
+ *
+ * Usage: Add class 'fade-in-up' to PropertyCard component
+ * Stagger delay calculated as: nth-child(n) * 50ms (FR-031)
+ */
+.fade-in-up {
+  animation: fadeInUp 400ms ease-out; /* FR-032: 400ms duration */
+  animation-fill-mode: both;
+}
+
+/* Maximum stagger: 20 cards × 50ms = 1000ms total animation time */
+.fade-in-up:nth-child(1) { animation-delay: 50ms; }
+.fade-in-up:nth-child(2) { animation-delay: 100ms; }
+.fade-in-up:nth-child(3) { animation-delay: 150ms; }
+.fade-in-up:nth-child(4) { animation-delay: 200ms; }
+.fade-in-up:nth-child(5) { animation-delay: 250ms; }
+.fade-in-up:nth-child(6) { animation-delay: 300ms; }
+.fade-in-up:nth-child(7) { animation-delay: 350ms; }
+.fade-in-up:nth-child(8) { animation-delay: 400ms; }
+.fade-in-up:nth-child(9) { animation-delay: 450ms; }
+.fade-in-up:nth-child(10) { animation-delay: 500ms; }
+.fade-in-up:nth-child(11) { animation-delay: 550ms; }
+.fade-in-up:nth-child(12) { animation-delay: 600ms; }
+.fade-in-up:nth-child(13) { animation-delay: 650ms; }
+.fade-in-up:nth-child(14) { animation-delay: 700ms; }
+.fade-in-up:nth-child(15) { animation-delay: 750ms; }
+.fade-in-up:nth-child(16) { animation-delay: 800ms; }
+.fade-in-up:nth-child(17) { animation-delay: 850ms; }
+.fade-in-up:nth-child(18) { animation-delay: 900ms; }
+.fade-in-up:nth-child(19) { animation-delay: 950ms; }
+.fade-in-up:nth-child(20) { animation-delay: 1000ms; }
+
+/* Cards beyond 20 get no additional delay (cap at 1000ms) */
+.fade-in-up:nth-child(n+21) { animation-delay: 1000ms; }
+
+/* ==========================================================================
+   Skeleton Pulse Animation (FR-061)
+   ========================================================================== */
+
+/**
+ * Pulse: Subtle opacity animation for skeleton loading states
+ *
+ * FR-061: Opacity 1.0 to 0.7 and back
+ */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1.0;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.skeleton-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* ==========================================================================
+   Reduced Motion Override (FR-036)
+   ========================================================================== */
+
+/**
+ * Accessibility: Disable all animations if user prefers reduced motion
+ *
+ * FR-036: Users with reduced motion preference MUST see instant content appearance
+ * without animations
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  .fade-in-up {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+  }
+
+  .skeleton-pulse {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* ==========================================================================
+   Hover Transition Classes (FR-033)
+   ========================================================================== */
+
+/**
+ * Transition utilities for consistent hover states
+ *
+ * FR-033: All hover transitions 200-300ms for sleek feel
+ */
+
+.transition-fast {
+  transition: all 200ms ease;
+}
+
+.transition-medium {
+  transition: all 300ms ease;
+}
+
+.transition-slow {
+  transition: all 400ms ease;
+}
+
+/* GPU-accelerated transforms */
+.transition-transform {
+  transition: transform 200ms ease;
+  will-change: transform; /* Hint to browser for GPU acceleration */
+}
+
+.transition-opacity {
+  transition: opacity 200ms ease;
+}
+
+.transition-colors {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+/**
+ * Apply GPU acceleration for smooth animations
+ * Use sparingly - only on elements that actually animate
+ */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/**
+ * Disable pointer events during animation to prevent interaction issues
+ */
+.animating {
+  pointer-events: none;
+}
+
+.animation-complete {
+  pointer-events: auto;
+}

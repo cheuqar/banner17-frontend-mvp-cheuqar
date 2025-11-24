@@ -1,0 +1,49 @@
+# Dockerfile for Fly.io Development Server Deployment
+# This runs Vite dev server directly, bypassing TypeScript build issues
+# Perfect for MVP/rapid iteration phases
+
+FROM node:20-alpine
+WORKDIR /app
+
+# Accept build arguments for Vite environment variables
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY  
+ARG VITE_API_BASE_URL
+ARG VITE_WS_BASE_URL
+
+# Set environment variables for Vite dev server (but keep NODE_ENV=development for npm install)
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_WS_BASE_URL=$VITE_WS_BASE_URL
+ENV NODE_ENV=development
+ENV HOST=0.0.0.0
+ENV PORT=3000
+
+# Memory optimization for Vite dev server - using only the most basic valid flag
+ENV NODE_OPTIONS="--max-old-space-size=384"
+
+# Copy package files from chatbot-app directory (build context is project root for Fly.io)
+COPY chatbot-app/package*.json ./
+
+# Install ALL dependencies (including dev dependencies) - NODE_ENV=development ensures devDeps are installed
+RUN NODE_ENV=development npm install --legacy-peer-deps && npm cache clean --force
+
+# Debug: Check if node_modules exists and show some info
+RUN ls -la node_modules/ | head -10 || echo "No node_modules found"
+RUN npm ls vite || echo "Vite not found in npm ls"
+
+# Copy source code from chatbot-app directory (excluding node_modules via .dockerignore)
+COPY chatbot-app/ .
+
+# Ensure node_modules is still there after copying source
+RUN ls -la node_modules/ | head -5 || echo "ERROR: node_modules was overwritten!"
+
+# Verify that vite is installed and show PATH
+RUN echo "PATH: $PATH" && echo "Node version:" && node --version && echo "NPM version:" && npm --version
+RUN npx vite --version || (echo "Vite not found, checking node_modules..." && ls -la node_modules/.bin/ | grep vite)
+
+EXPOSE 3000
+
+# Run Vite development server with debug output and explicit environment variables
+CMD ["sh", "-c", "echo '🔍 Debug: Environment variables for Vite:' && echo 'NODE_ENV='$NODE_ENV && echo 'VITE_SUPABASE_URL='$VITE_SUPABASE_URL && echo 'VITE_API_BASE_URL='$VITE_API_BASE_URL && echo 'VITE_WS_BASE_URL='$VITE_WS_BASE_URL && echo 'Starting Vite dev server...' && NODE_ENV=development VITE_SUPABASE_URL='$VITE_SUPABASE_URL' VITE_SUPABASE_ANON_KEY='$VITE_SUPABASE_ANON_KEY' VITE_API_BASE_URL='$VITE_API_BASE_URL' VITE_WS_BASE_URL='$VITE_WS_BASE_URL' npx vite --config vite.config.deploy.ts --host 0.0.0.0 --port 3000"]

@@ -1,0 +1,357 @@
+/* Import Google Fonts - RealHub inspired typography + Caveat for marketing */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&family=Open+Sans:wght@300;400;500;600;700&family=Caveat:wght@400;500;600;700&display=swap');
+
+/* CSS Custom Properties - RealHub Design System */
+:root {
+  /* Typography System */
+  --font-primary: 'Amplitude', 'Helvetica', sans-serif;
+  --font-secondary: 'Amplitude', sans-serif;
+  --font-accent: 'Caveat', cursive; /* For marketing statements and special highlights */
+  --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Color System - Professional Gray Palette */
+  --color-primary-main: #0d2b2c;
+  --color-primary-light: #4DCCDC;
+  --color-primary-dark: #1299AE;
+  --color-primary-contrast: #FFFFFF;
+  
+  --color-secondary-main: #B0B3B8;  /* Lighter, softer gray - macaroon tone */
+  --color-secondary-light: #D4D6DA;
+  --color-secondary-dark: #8A8D93;
+  
+  --color-text-primary: #404041;
+  --color-text-secondary: #8C8C8E;
+  --color-text-disabled: #BDBDBD;
+  --color-text-placeholder: #9E9E9E;
+  
+  --color-bg-default: #FFFFFF;
+  --color-bg-paper: #F8F9FA;
+  --color-bg-subtle: #FAFBFC;
+  
+  /* Semantic Colors - Soft Macaroon Tones */
+  --color-success-main: #A8E6A3;  /* Soft mint green - no sharp edges */
+  --color-warning-main: #F5D58A;  /* Soft peach/apricot - warm and friendly */
+  --color-error-main: #F5A5A8;    /* Soft coral/pink - gentle but clear */
+  --color-info-main: #A8D8EA;     /* Soft sky blue - calm and informative */
+  
+  /* Spacing System (8px base) */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 2.5rem;
+  --spacing-3xl: 3rem;
+  
+  /* Border & Shadow System */
+  --border-radius-sm: 4px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+  --border-radius-xl: 16px;
+  
+  --shadow-xs: 0 1px 2px rgba(64, 64, 65, 0.04);
+  --shadow-sm: 0 2px 4px rgba(64, 64, 65, 0.06);
+  --shadow-md: 0 4px 8px rgba(64, 64, 65, 0.08);
+  --shadow-lg: 0 8px 16px rgba(64, 64, 65, 0.12);
+  
+  /* Transitions */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-secondary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-default);
+}
+
+/* Keyframes for animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+/* NEW: Catchment boundary pulsing animation (Sprint 3 - Phase 2.5.9) */
+@keyframes catchmentPulse {
+  0% {
+    stroke-opacity: 0.8;
+    stroke-width: 2px;
+  }
+  50% {
+    stroke-opacity: 1;
+    stroke-width: 3px;
+  }
+  100% {
+    stroke-opacity: 0.8;
+    stroke-width: 2px;
+  }
+}
+
+/* Apply pulsing animation to active catchment boundaries */
+.leaflet-interactive.catchment-boundary-active {
+  animation: catchmentPulse 2s ease-in-out infinite;
+}
+
+/* Scrollbar styling - RealHub inspired */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-subtle);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-secondary-light);
+  border-radius: var(--border-radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary-main);
+}
+
+/* Focus outlines - Professional gray theme */
+*:focus {
+  outline: 2px solid var(--color-primary-main);
+  outline-offset: 2px;
+}
+
+/* Selection styling */
+::selection {
+  background-color: var(--color-primary-main);
+  color: var(--color-primary-contrast);
+}
+
+/* Utility Classes for RealHub Design System */
+.text-primary { color: var(--color-text-primary); }
+.text-secondary { color: var(--color-text-secondary); }
+.text-disabled { color: var(--color-text-disabled); }
+
+.bg-default { background-color: var(--color-bg-default); }
+.bg-paper { background-color: var(--color-bg-paper); }
+.bg-subtle { background-color: var(--color-bg-subtle); }
+
+.font-primary { font-family: var(--font-primary); }
+.font-secondary { font-family: var(--font-secondary); }
+.font-accent { font-family: var(--font-accent); }
+
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+
+.radius-sm { border-radius: var(--border-radius-sm); }
+.radius-md { border-radius: var(--border-radius-md); }
+.radius-lg { border-radius: var(--border-radius-lg); }
+.radius-xl { border-radius: var(--border-radius-xl); }
+
+.transition-normal { transition: var(--transition-normal); }
+.transition-fast { transition: var(--transition-fast); }
+.transition-slow { transition: var(--transition-slow); }
+
+/* Caveat marketing typography styles */
+.marketing-large {
+  font-family: var(--font-accent);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.marketing-medium {
+  font-family: var(--font-accent);
+  font-size: 1.75rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.marketing-small {
+  font-family: var(--font-accent);
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+/* Custom cluster icon styling - Smart Search feature */
+.custom-cluster-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-cluster-icon div {
+  transition: transform 0.2s ease;
+}
+
+.custom-cluster-icon:hover div {
+  transform: scale(1.1);
+}
+
+/* NEW: Property marker popup styling - Sprint 2 (Phase 2.5.11) */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  min-width: 280px !important;
+  max-width: 280px !important;
+}
+
+.leaflet-popup-tip-container {
+  /* Keep default arrow/tip styling */
+}
+
+/* NEW: Price marker icon styling - Sprint 2 Enhancement 2 (Phase 2.5.11) */
+.custom-price-marker {
+  /* Reset default leaflet styles */
+  background: transparent !important;
+  border: none !important;
+}
+
+.price-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.price-marker:hover {
+  transform: scale(1.1);
+  z-index: 1000 !important;
+}
+
+.price-marker.selected {
+  transform: scale(1.15);
+  z-index: 1001 !important;
+}
+
+.price-label {
+  background-color: #000;
+  color: #fff;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: 2px solid #fff;
+}
+
+.price-marker.selected .price-label {
+  background-color: #000000; /* Phase 2.29: Black for Style4-V2 compliance */
+  border: 3px solid #ffffff; /* Phase 2.29: Thicker border for stronger visual feedback */
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4); /* Phase 2.29: Updated shadow for black background */
+}
+
+.price-pointer {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid #000;
+  margin-top: -2px;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+}
+
+.price-marker.selected .price-pointer {
+  border-top-color: #000000; /* Phase 2.29: Black to match selected marker */
+}
+
+/* ============================================
+   Phase 2.21: School Marker Mono-Chrome Styling
+   ============================================ */
+
+/* Individual school marker - no background, just icon */
+.school-marker-mono {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* School cluster marker container */
+.custom-school-cluster-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.school-cluster-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.school-cluster-marker:hover {
+  transform: scale(1.1);
+  z-index: 1000 !important;
+}
+
+/* School cluster label - rounded container with gray background */
+.school-cluster-label {
+  background-color: #B3B3B3;
+  color: #000000;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* School count text inside cluster label */
+.school-cluster-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000000;
+}
+
+/* Triangular pointer below cluster container */
+.school-cluster-pointer {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid #B3B3B3;
+  margin-top: -2px;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+}

@@ -1,0 +1,76 @@
+/* Phase 2.32: Amenity Marker Tooltip Styles */
+.amenity-marker-tooltip {
+  font-family: "Amplitude", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0b2d2c;
+  background-color: #FFFFFF;
+  border: 1px solid #CCCCCC;
+  border-radius: 4px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amenity-marker-tooltip::before {
+  border-top-color: #CCCCCC !important;
+}
+
+/* Phase 2.32: Amenity Cluster Marker Styles */
+.amenity-cluster-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.amenity-cluster-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #B3B3B3;
+  border: 2px solid #FFFFFF;
+  border-radius: 16px;
+  padding: 4px 12px 4px 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.amenity-cluster-count {
+  font-family: "Amplitude", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0b2d2c;
+  white-space: nowrap;
+}
+
+.amenity-cluster-pointer {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 10px solid #B3B3B3;
+  margin-top: -2px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
+}
+
+/* Phase 2.32: Custom Cluster Marker Override */
+.custom-amenity-cluster-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Phase 2.32: Amenity Marker Base Styles */
+.amenity-marker {
+  background: transparent !important;
+  border: none !important;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+  transition: transform 0.2s ease;
+}
+
+.amenity-marker:hover {
+  transform: scale(1.1);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.35));
+}

@@ -1,0 +1,73 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+/* Grace-style Leaflet Popup - Sprint 3 Enhancement 3 */
+.leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  min-width: 280px;
+  font-family: 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
+}
+
+.leaflet-popup-tip-container {
+  /* Keep Leaflet arrow/tip */
+}
+
+.leaflet-popup-close-button {
+  padding: 8px !important;
+  color: #666666 !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  transition: color 0.2s ease-in-out !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #000000 !important;
+  background: transparent !important;
+}

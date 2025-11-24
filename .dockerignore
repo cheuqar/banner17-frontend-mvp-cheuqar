@@ -1,0 +1,34 @@
+# Prevent copying these files/directories during Docker build
+# This ensures our installed node_modules aren't overwritten
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs (we're running dev server, not using build)
+dist/
+build/
+
+# Development files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Other Docker files (prevent recursive Docker builds)
+Dockerfile*
+.dockerignore

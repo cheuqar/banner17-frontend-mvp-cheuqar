@@ -1,0 +1,224 @@
+/**
+ * FilterBar Module CSS - Smart Search UI Redesign (Feature 001)
+ *
+ * Monochrome styling for filter bar following FR-006 to FR-013
+ *
+ * Design System:
+ * - Palette: #000000 (black), #FFFFFF (white), #F5F5F5 (light gray),
+ *           #E0E0E0 (border gray), #EBEBEB (input hover), #666666 (secondary text)
+ * - Spacing: 4px base unit (64px height = 16 × 4px, 40px inputs = 10 × 4px)
+ * - Transitions: 200ms ease for all interactions (FR-033)
+ * - Typography: Inter font family
+ */
+
+/* ==========================================================================
+   FilterBar Container (FR-006, FR-007)
+   ========================================================================== */
+
+.filterBar {
+  /* FR-007: White background */
+  background-color: #FFFFFF !important;
+
+  /* FR-006: 64px height (4px spacing system: 64px = 16 × 4px) */
+  height: 64px !important;
+  min-height: 64px !important;
+
+  /* FR-006: 1px solid #E0E0E0 bottom border */
+  border-bottom: 1px solid #E0E0E0 !important;
+
+  /* Layout */
+  display: flex;
+  align-items: center;
+  padding: 0 24px; /* 4px spacing system: 24px = 6 × 4px */
+  gap: 16px; /* 4px spacing system: 16px = 4 × 4px */
+
+  /* Remove Material-UI default styles */
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   Apply Button (FR-012, FR-013)
+   ========================================================================== */
+
+.applyButton {
+  /* FR-012: Black background with white text */
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+
+  /* Button sizing */
+  height: 40px !important; /* 4px spacing system: 40px = 10 × 4px */
+  padding: 0 24px !important; /* 4px spacing system */
+  border-radius: 6px !important;
+
+  /* Typography */
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-transform: none !important; /* Prevent Material-UI uppercase */
+
+  /* Transitions - FR-033: 200ms for all effects */
+  transition: all 200ms ease !important;
+
+  /* Remove Material-UI defaults */
+  box-shadow: none !important;
+  border: none !important;
+}
+
+/* FR-013: Hover state - 1px lift with box-shadow */
+.applyButton:hover {
+  background-color: #000000 !important; /* Keep black background */
+  transform: translateY(-1px) !important; /* FR-013: 1px lift */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important; /* FR-013: Elevated shadow */
+}
+
+/* Active/pressed state */
+.applyButton:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Focus state (FR-038) */
+.applyButton:focus-visible {
+  outline: 2px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+/* Disabled state */
+.applyButton:disabled {
+  background-color: #E0E0E0 !important;
+  color: #666666 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ==========================================================================
+   Clear Button (Secondary Button Styling)
+   ========================================================================== */
+
+.clearButton {
+  /* White background with black border for secondary actions */
+  background-color: #FFFFFF !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+
+  /* Button sizing */
+  height: 40px !important;
+  padding: 0 24px !important;
+  border-radius: 6px !important;
+
+  /* Typography */
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-transform: none !important;
+
+  /* Transitions */
+  transition: all 200ms ease !important;
+}
+
+/* Hover state for clear button - inverse colors */
+.clearButton:hover {
+  background-color: #000000 !important;
+  color: #FFFFFF !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Focus state */
+.clearButton:focus-visible {
+  outline: 2px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+/* ==========================================================================
+   Filter Count Badge
+   ========================================================================== */
+
+.filterCount {
+  /* Monochrome badge styling */
+  background-color: #F5F5F5 !important;
+  color: #000000 !important;
+  border: 1px solid #E0E0E0 !important;
+  border-radius: 12px !important;
+
+  /* Sizing */
+  min-width: 24px !important;
+  height: 24px !important;
+  padding: 0 8px !important; /* 4px spacing system: 8px = 2 × 4px */
+
+  /* Typography */
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 24px !important;
+  text-align: center !important;
+}
+
+/* ==========================================================================
+   Filter Bar Header/Title
+   ========================================================================== */
+
+.filterBarTitle {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #000000 !important;
+  margin: 0 !important;
+  flex-grow: 1;
+}
+
+.filterBarSubtitle {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: #666666 !important;
+  margin: 0 !important;
+}
+
+/* ==========================================================================
+   Accessibility (FR-035, FR-036)
+   ========================================================================== */
+
+/* High contrast mode support (FR-035) */
+@media (prefers-contrast: high) {
+  .filterBar {
+    border-bottom-width: 2px !important;
+  }
+
+  .applyButton,
+  .clearButton {
+    border-width: 3px !important;
+  }
+
+  .filterBarTitle {
+    font-weight: 800 !important;
+  }
+}
+
+/* Reduced motion support (FR-036) */
+@media (prefers-reduced-motion: reduce) {
+  .applyButton,
+  .clearButton {
+    transition: none !important;
+  }
+
+  .applyButton:hover,
+  .clearButton:hover {
+    transform: none !important;
+  }
+}
+
+/* ==========================================================================
+   Responsive Design
+   ========================================================================== */
+
+/* Mobile: Stack buttons vertically if needed */
+@media (max-width: 768px) {
+  .filterBar {
+    height: auto !important;
+    min-height: 64px !important;
+    flex-wrap: wrap;
+    padding: 12px 16px; /* 4px spacing system */
+  }
+
+  .applyButton,
+  .clearButton {
+    flex: 1;
+    min-width: 120px;
+  }
+}

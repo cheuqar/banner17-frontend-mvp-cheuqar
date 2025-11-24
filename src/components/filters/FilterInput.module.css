@@ -1,0 +1,267 @@
+/**
+ * FilterInput Module CSS - Smart Search UI Redesign (Feature 001)
+ *
+ * Monochrome styling for filter inputs following FR-008 to FR-011
+ *
+ * Design System:
+ * - Palette: #000000 (black), #FFFFFF (white), #F5F5F5 (input bg),
+ *           #E0E0E0 (border), #EBEBEB (hover bg), #666666 (placeholder)
+ * - Spacing: 4px base unit (40px height = 10 × 4px, 12px padding = 3 × 4px)
+ * - Transitions: 200ms ease for all interactions (FR-033)
+ * - Typography: Inter font family
+ */
+
+/* ==========================================================================
+   FilterInput Base Styles (FR-008, FR-009)
+   ========================================================================== */
+
+.filterInput {
+  /* FR-008: #F5F5F5 background for subtle contrast */
+  background-color: #F5F5F5 !important;
+
+  /* FR-009: 40px height (4px spacing system: 40px = 10 × 4px) */
+  height: 40px !important;
+  min-height: 40px !important;
+
+  /* FR-009: 12px horizontal padding (4px spacing system: 12px = 3 × 4px) */
+  padding: 0 12px !important;
+
+  /* Border */
+  border: 1px solid #E0E0E0 !important;
+  border-radius: 6px !important;
+
+  /* Typography */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: #000000 !important;
+  line-height: 40px !important;
+
+  /* Remove browser defaults */
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+
+  /* FR-033: 200ms transitions for smooth interactions */
+  transition: all 200ms ease !important;
+}
+
+/* Placeholder text styling */
+.filterInput::placeholder {
+  color: #666666 !important;
+  opacity: 1 !important;
+}
+
+.filterInput::-webkit-input-placeholder {
+  color: #666666 !important;
+}
+
+.filterInput::-moz-placeholder {
+  color: #666666 !important;
+}
+
+.filterInput:-ms-input-placeholder {
+  color: #666666 !important;
+}
+
+/* ==========================================================================
+   FilterInput Hover State (FR-011)
+   ========================================================================== */
+
+/* FR-011: #EBEBEB background on hover with 200ms transition */
+.filterInput:hover:not(:focus):not(:disabled) {
+  background-color: #EBEBEB !important;
+  border-color: #E0E0E0 !important;
+}
+
+/* ==========================================================================
+   FilterInput Focus State (FR-010)
+   ========================================================================== */
+
+/* FR-010: 2px solid #000000 border on focus with 200ms transition */
+.filterInput:focus,
+.filterInput:focus-visible {
+  background-color: #FFFFFF !important; /* White background when focused */
+  border: 2px solid #000000 !important; /* FR-010: 2px black border */
+  padding: 0 11px !important; /* Adjust padding for 2px border (12px - 1px) */
+  outline: none !important;
+}
+
+/* ==========================================================================
+   FilterInput Disabled State
+   ========================================================================== */
+
+.filterInput:disabled {
+  background-color: #F5F5F5 !important;
+  color: #666666 !important;
+  border-color: #E0E0E0 !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+}
+
+/* ==========================================================================
+   FilterInput Select Dropdown
+   ========================================================================== */
+
+.filterInput[type="select"],
+.filterInput select,
+select.filterInput {
+  /* Dropdown arrow for select elements */
+  background-image: url('data:image/svg+xml;charset=UTF-8,<svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 1L6 6L11 1" stroke="%23000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>') !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  padding-right: 36px !important; /* Space for arrow */
+}
+
+/* ==========================================================================
+   FilterInput Number Input
+   ========================================================================== */
+
+/* Remove number input spinners for cleaner look */
+.filterInput[type="number"]::-webkit-inner-spin-button,
+.filterInput[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none !important;
+  margin: 0 !important;
+}
+
+.filterInput[type="number"] {
+  -moz-appearance: textfield !important;
+}
+
+/* ==========================================================================
+   FilterInput Textarea
+   ========================================================================== */
+
+textarea.filterInput {
+  /* Textarea-specific styling */
+  height: auto !important;
+  min-height: 80px !important;
+  padding: 12px !important; /* 4px spacing system */
+  line-height: 1.5 !important;
+  resize: vertical !important;
+}
+
+textarea.filterInput:focus {
+  padding: 11px !important; /* Adjust for 2px border */
+}
+
+/* ==========================================================================
+   FilterInput Validation States
+   ========================================================================== */
+
+/* Error state */
+.filterInput.error,
+.filterInput[aria-invalid="true"] {
+  border-color: #DC2626 !important; /* Red for errors */
+}
+
+.filterInput.error:focus {
+  border-color: #DC2626 !important;
+  border-width: 2px !important;
+}
+
+/* Success state */
+.filterInput.success {
+  border-color: #16A34A !important; /* Green for success */
+}
+
+/* ==========================================================================
+   FilterInput Label
+   ========================================================================== */
+
+.filterLabel {
+  display: block;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #000000 !important;
+  margin-bottom: 8px !important; /* 4px spacing system: 8px = 2 × 4px */
+  line-height: 1.4;
+}
+
+.filterLabel.required::after {
+  content: ' *';
+  color: #DC2626;
+}
+
+/* ==========================================================================
+   FilterInput Helper Text
+   ========================================================================== */
+
+.filterHelperText {
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  color: #666666 !important;
+  margin-top: 4px !important; /* 4px spacing system */
+  line-height: 1.4;
+}
+
+.filterHelperText.error {
+  color: #DC2626 !important;
+}
+
+/* ==========================================================================
+   FilterInput Group (for inline inputs like price range)
+   ========================================================================== */
+
+.filterInputGroup {
+  display: flex;
+  gap: 8px; /* 4px spacing system: 8px = 2 × 4px */
+  align-items: center;
+}
+
+.filterInputGroup .filterInput {
+  flex: 1;
+}
+
+.filterInputGroupSeparator {
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: #666666 !important;
+  padding: 0 4px; /* 4px spacing system */
+}
+
+/* ==========================================================================
+   Accessibility (FR-035, FR-036, FR-037, FR-038)
+   ========================================================================== */
+
+/* FR-037: Ensure 40px minimum touch target */
+.filterInput {
+  min-width: 40px;
+  min-height: 40px;
+}
+
+/* FR-038: Focus-visible already handled in focus state */
+
+/* High contrast mode support (FR-035) */
+@media (prefers-contrast: high) {
+  .filterInput {
+    border-width: 2px !important;
+  }
+
+  .filterInput:focus {
+    border-width: 3px !important;
+    padding: 0 10px !important; /* Adjust for 3px border */
+  }
+
+  .filterLabel {
+    font-weight: 600 !important;
+  }
+}
+
+/* Reduced motion support (FR-036) */
+@media (prefers-reduced-motion: reduce) {
+  .filterInput {
+    transition: none !important;
+  }
+}
+
+/* ==========================================================================
+   Dark Mode Override (if needed in future)
+   ========================================================================== */
+
+/* Currently using monochrome design, but prepared for dark mode */
+@media (prefers-color-scheme: dark) {
+  /* Intentionally empty - monochrome design doesn't change with system theme */
+}

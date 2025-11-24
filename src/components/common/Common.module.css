@@ -1,0 +1,205 @@
+/**
+ * Common Shared Styles - Precision Monochrome Theme
+ *
+ * Feature: Smart Search UI Redesign
+ * Spec: specs/001-smart-search-ui-redesign/
+ *
+ * Shared CSS module for common UI components
+ */
+
+/* ==========================================================================
+   Color Variables (Monochrome Palette)
+   ========================================================================== */
+
+:root {
+  --monochrome-black: #000000;
+  --monochrome-white: #FFFFFF;
+  --monochrome-light-gray: #F5F5F5;
+  --monochrome-border-gray: #E0E0E0;
+  --monochrome-secondary-text: #666666;
+  --monochrome-hover-bg: #FAFAFA;
+  --monochrome-input-hover: #EBEBEB;
+}
+
+/* ==========================================================================
+   Loading Spinner Styles (FR-054)
+   ========================================================================== */
+
+.loadingSpinner {
+  color: var(--monochrome-black);
+  stroke-width: 2px;
+}
+
+.loadingSpinnerSmall {
+  width: 24px;
+  height: 24px;
+}
+
+.loadingSpinnerMedium {
+  width: 40px;
+  height: 40px;
+}
+
+.loadingSpinnerLarge {
+  width: 64px;
+  height: 64px;
+}
+
+/* ==========================================================================
+   Empty State Styles (FR-055, FR-056)
+   ========================================================================== */
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px; /* 4px spacing system */
+  text-align: center;
+  width: 100%;
+}
+
+.emptyStateIcon {
+  margin-bottom: 16px; /* 4px spacing system */
+  color: var(--monochrome-border-gray); /* FR-056: #E0E0E0 */
+  font-size: 48px; /* FR-056: 48px icon size */
+  line-height: 1;
+}
+
+.emptyStateMessage {
+  font-size: 16px; /* FR-055: 16px text */
+  font-weight: 500; /* FR-055: 500 weight */
+  color: var(--monochrome-secondary-text); /* FR-055: #666666 */
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+/* ==========================================================================
+   Tooltip Styles (FR-057, FR-058)
+   ========================================================================== */
+
+.tooltip {
+  background-color: var(--monochrome-white); /* FR-057: White background */
+  color: var(--monochrome-black); /* FR-057: Black text */
+  border: 2px solid var(--monochrome-black); /* FR-057: 2px black border */
+  border-radius: 6px; /* FR-057: 6px border-radius */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* FR-058: Box shadow */
+  font-size: 12px; /* FR-058: 12px text */
+  font-weight: 400; /* FR-058: 400 weight */
+  padding: 8px; /* 4px spacing system */
+  line-height: 1.4;
+  max-width: 300px;
+}
+
+/* ==========================================================================
+   Badge Styles (FR-059, FR-060)
+   ========================================================================== */
+
+.badge {
+  background-color: var(--monochrome-white); /* FR-059: White background */
+  color: var(--monochrome-black); /* FR-059: Black text */
+  border: 1px solid var(--monochrome-border-gray); /* FR-059: 1px #E0E0E0 border */
+  border-radius: 6px; /* FR-059: 6px border-radius */
+  font-size: 13px;
+  font-weight: 500;
+  padding: 4px 12px; /* 4px spacing system */
+  height: auto;
+  line-height: 1.4;
+  transition: all 200ms ease; /* FR-033: 200ms transitions */
+  cursor: pointer;
+}
+
+.badge:hover {
+  background-color: var(--monochrome-hover-bg);
+}
+
+.badgeActive {
+  background-color: var(--monochrome-black); /* FR-060: Black background when active */
+  color: var(--monochrome-white); /* FR-060: White text when active */
+  border: 1px solid var(--monochrome-black);
+}
+
+.badgeActive:hover {
+  background-color: var(--monochrome-black);
+}
+
+/* ==========================================================================
+   Skeleton Loader Styles (FR-061)
+   ========================================================================== */
+
+.skeleton {
+  background-color: var(--monochrome-light-gray); /* FR-061: #F5F5F5 background */
+  border-radius: 0px; /* FR-020: 0px for card variants */
+}
+
+.skeletonPulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1.0;
+  }
+  50% {
+    opacity: 0.7; /* FR-061: Opacity 1.0 to 0.7 */
+  }
+}
+
+/* Accessibility: Disable animation for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .skeletonPulse {
+    animation: none;
+    opacity: 1 !important;
+  }
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+.monochromeCard {
+  background-color: var(--monochrome-white);
+  border: 1px solid var(--monochrome-border-gray);
+  border-radius: 0px; /* FR-020: 0px for cards */
+  padding: 16px; /* FR-017: 16px padding */
+  transition: background-color 200ms ease;
+}
+
+.monochromeCard:hover {
+  background-color: var(--monochrome-hover-bg); /* FR-019: #FAFAFA hover */
+}
+
+.monochromeButton {
+  background-color: var(--monochrome-black); /* FR-012: Black background */
+  color: var(--monochrome-white);
+  border: none;
+  border-radius: 6px;
+  padding: 12px 24px; /* 4px spacing system */
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 200ms ease; /* FR-033 */
+  cursor: pointer;
+}
+
+.monochromeButton:hover {
+  transform: translateY(-1px); /* FR-013: 1px lift */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); /* FR-013 */
+}
+
+.monochromeButtonOutline {
+  background-color: var(--monochrome-white);
+  color: var(--monochrome-black);
+  border: 2px solid var(--monochrome-black);
+  border-radius: 6px;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 200ms ease;
+  cursor: pointer;
+}
+
+.monochromeButtonOutline:hover {
+  background-color: var(--monochrome-black); /* FR-045: Inverse hover */
+  color: var(--monochrome-white);
+  transform: translateY(-1px);
+}

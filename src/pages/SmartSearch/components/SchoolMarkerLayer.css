@@ -1,0 +1,20 @@
+/* Phase 2.27: School Marker Tooltip Styles */
+.school-marker-tooltip {
+  font-family: "Amplitude", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #0b2d2c;
+  background-color: #FFFFFF;
+  border: 1px solid #CCCCCC;
+  border-radius: 4px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.school-marker-tooltip::before {
+  border-top-color: #CCCCCC !important;
+}

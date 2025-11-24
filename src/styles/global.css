@@ -1,0 +1,166 @@
+/**
+ * Global Styles - Precision Monochrome Theme
+ *
+ * Feature: Smart Search UI Redesign
+ * Spec: specs/001-smart-search-ui-redesign/
+ *
+ * Extends existing index.css with Inter font and monochrome accessibility styles
+ */
+
+/* ==========================================================================
+   Font Family Override (Research Topic 1)
+   ========================================================================== */
+
+:root {
+  /* Inter font with system font fallback */
+  --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+
+  /* Monochrome color palette (strict black/white/gray) */
+  --color-monochrome-black: #000000;
+  --color-monochrome-white: #FFFFFF;
+  --color-monochrome-light-gray: #F5F5F5;
+  --color-monochrome-border-gray: #E0E0E0;
+  --color-monochrome-secondary-text: #666666;
+  --color-monochrome-hover-bg: #FAFAFA;
+  --color-monochrome-input-hover: #EBEBEB;
+
+  /* 4px spacing system (FR-029) */
+  --spacing-4px: 4px;
+  --spacing-8px: 8px;
+  --spacing-12px: 12px;
+  --spacing-16px: 16px;
+  --spacing-24px: 24px;
+  --spacing-32px: 32px;
+  --spacing-48px: 48px;
+
+  /* Transition durations (FR-033) */
+  --transition-fast: 200ms;
+  --transition-medium: 300ms;
+  --transition-slow: 400ms;
+}
+
+/* Apply Inter font to body */
+body {
+  font-family: var(--font-family-primary);
+}
+
+/* ==========================================================================
+   Accessibility Styles (FR-035, FR-038)
+   ========================================================================== */
+
+/**
+ * Focus Visible - FR-038
+ *
+ * All interactive elements must have clearly visible focus state
+ * 2px solid #000000 outline with 2px offset
+ */
+*:focus-visible {
+  outline: 2px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+/* Remove default focus styles to prevent double outlines */
+*:focus {
+  outline: none;
+}
+
+/* Ensure buttons and links always show focus-visible */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+/**
+ * High Contrast Mode Override - FR-035
+ *
+ * Enhance contrast beyond standard when OS-level high contrast is enabled
+ */
+@media (prefers-contrast: high) {
+  :root {
+    --color-monochrome-border-gray: #000000 !important;     /* Enhance from #E0E0E0 */
+    --color-monochrome-secondary-text: #000000 !important;  /* Enhance from #666666 */
+  }
+
+  /* Increase border widths in high contrast mode */
+  .property-card,
+  .filter-input,
+  .map-marker {
+    border-width: 2px !important;
+  }
+}
+
+/* ==========================================================================
+   Touch Target Minimum (FR-037)
+   ========================================================================== */
+
+/**
+ * All interactive elements must meet 40px minimum touch target
+ * This is enforced at component level, but global rule ensures fallback
+ */
+button,
+a,
+input[type="button"],
+input[type="submit"],
+[role="button"],
+[role="link"] {
+  min-height: 40px;
+  min-width: 40px;
+  padding: 8px; /* Ensures visual element + padding meets 40px */
+}
+
+/* ==========================================================================
+   Utility Classes
+   ========================================================================== */
+
+/* Hide visually but keep accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000000;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  text-decoration: none;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* Prevent text selection on UI controls */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Smooth scrolling for anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -1,0 +1,281 @@
+/**
+ * PropertyCard Module CSS - Smart Search UI Redesign (Feature 001)
+ *
+ * Monochrome styling for property cards following FR-014 to FR-021
+ *
+ * Design System:
+ * - Palette: #000000 (black), #FFFFFF (white), #F5F5F5 (light gray),
+ *           #E0E0E0 (border gray), #666666 (secondary text), #FAFAFA (hover bg)
+ * - Spacing: 4px base unit (16px padding = 4 × 4px)
+ * - Transitions: 200ms ease for hover states (FR-033)
+ * - Typography: Inter font family with hierarchical sizing
+ */
+
+/* ==========================================================================
+   PropertyCard Container (FR-020)
+   ========================================================================== */
+
+.propertyCard {
+  /* FR-020: 0px border-radius for sharp, modern edges */
+  border-radius: 0px !important;
+
+  /* FR-020: 1px solid #E0E0E0 border */
+  border: 1px solid #E0E0E0 !important;
+
+  /* Background */
+  background-color: #FFFFFF !important;
+
+  /* Layout */
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  /* FR-033: 200ms transitions for smooth interactions */
+  transition: all 200ms ease !important;
+}
+
+/* FR-019: Hover background #FAFAFA with 200ms transition */
+.propertyCard:hover {
+  background-color: #FAFAFA !important;
+  border-color: #000000 !important; /* Sharper black border on hover */
+  transform: translateY(-2px); /* Subtle lift effect */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Subtle shadow on hover */
+}
+
+/* ==========================================================================
+   PropertyCard Content (FR-020)
+   ========================================================================== */
+
+.propertyCardContent {
+  /* FR-020: 16px padding (4px spacing system: 16px = 4 × 4px) */
+  padding: 16px !important;
+  flex-grow: 1;
+}
+
+/* ==========================================================================
+   Property Image (FR-016, FR-017)
+   ========================================================================== */
+
+.propertyImage {
+  /* FR-017: Image height 200px */
+  height: 200px !important;
+  width: 100%;
+  object-fit: cover;
+
+  /* FR-016: Default state - grayscale 20% for subtle desaturation */
+  filter: grayscale(20%);
+
+  /* FR-016: 300ms transition for smooth color restoration */
+  transition: filter 300ms ease !important;
+}
+
+/* FR-016: Hover state - remove grayscale (0%) for full color */
+.propertyCard:hover .propertyImage {
+  filter: grayscale(0%);
+}
+
+/* Image container styling */
+.imageContainer {
+  height: 200px;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ==========================================================================
+   Property Type Label (FR-015)
+   ========================================================================== */
+
+.propertyType {
+  /* FR-015: 11px uppercase text at 700 weight */
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+
+  /* FR-015: #666666 color for secondary hierarchy */
+  color: #666666 !important;
+
+  /* Chip-specific overrides for Material-UI */
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  height: auto !important;
+  margin-bottom: 8px; /* 4px spacing system: 8px = 2 × 4px */
+}
+
+/* ==========================================================================
+   Price Display (FR-014, FR-021)
+   ========================================================================== */
+
+.price {
+  /* FR-014: 20px text at 700 weight for maximum visibility */
+  font-size: 20px !important;
+  font-weight: 700 !important;
+
+  /* FR-014: Black text for high contrast */
+  color: #000000 !important;
+
+  /* Spacing */
+  margin-bottom: 8px !important; /* 4px spacing system: 8px = 2 × 4px */
+  line-height: 1.2;
+}
+
+/* FR-021: Price formatting handled in component logic ($1,234,567) */
+
+/* ==========================================================================
+   Address and Location Typography (FR-001 to FR-005)
+   ========================================================================== */
+
+.address {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #000000 !important;
+  margin-bottom: 4px !important; /* 4px spacing system */
+  line-height: 1.4;
+}
+
+.location {
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  color: #666666 !important;
+  margin-bottom: 16px !important; /* 4px spacing system: 16px = 4 × 4px */
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Property Features (Bedrooms/Bathrooms/Parking) (FR-018)
+   ========================================================================== */
+
+.features {
+  display: flex;
+  gap: 16px; /* 4px spacing system: 16px = 4 × 4px */
+  align-items: center;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* 4px spacing system */
+}
+
+/* FR-018: Feature icons 16px size */
+.featureIcon {
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+  color: #666666 !important; /* Secondary color for icons */
+}
+
+/* FR-018: Feature labels 13px at 500 weight */
+.featureLabel {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: #666666 !important;
+  line-height: 1;
+}
+
+/* ==========================================================================
+   Accessibility (FR-037, FR-038)
+   ========================================================================== */
+
+/* FR-038: Focus-visible state with 2px solid black outline */
+.propertyCard:focus-visible {
+  outline: 2px solid #000000 !important;
+  outline-offset: 2px !important;
+}
+
+/* FR-037: Ensure 40px minimum touch target (card itself is larger) */
+.propertyCard {
+  min-height: 40px;
+}
+
+/* ==========================================================================
+   Responsive Design & Spacing System
+   ========================================================================== */
+
+/* Ensure consistent 4px spacing throughout */
+.propertyCard * {
+  box-sizing: border-box;
+}
+
+/* Remove default Material-UI styles that conflict */
+.propertyCard .MuiCard-root {
+  box-shadow: none !important;
+}
+
+.propertyCard .MuiCardContent-root:last-child {
+  padding-bottom: 16px !important; /* Maintain 16px padding */
+}
+
+/* ==========================================================================
+   Animation Support (FR-036)
+   ========================================================================== */
+
+/* Reduced motion support - disable transitions for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .propertyCard,
+  .propertyImage {
+    transition: none !important;
+  }
+
+  .propertyCard:hover {
+    transform: none !important;
+  }
+}
+
+/* ==========================================================================
+   High Contrast Mode Support (FR-035)
+   ========================================================================== */
+
+@media (prefers-contrast: high) {
+  .propertyCard {
+    border-width: 2px !important; /* Thicker borders for visibility */
+  }
+
+  .price,
+  .address {
+    font-weight: 700 !important; /* Stronger text weight */
+  }
+
+  .propertyCard:hover {
+    border-width: 3px !important;
+  }
+}
+
+/* ==========================================================================
+   Staggered Animation (FR-031)
+   ========================================================================== */
+
+/* Animation classes will be applied by parent EnhancedPropertyList component */
+/* FR-031: 50ms stagger delay between cards handled in parent component */
+
+/* Fade-in animation compatible with animations.css */
+.fadeInUp {
+  animation-name: fadeInUp;
+  animation-duration: 400ms;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+/* Stagger delays (1-20 cards) */
+.fadeInUp:nth-child(1) { animation-delay: 50ms; }
+.fadeInUp:nth-child(2) { animation-delay: 100ms; }
+.fadeInUp:nth-child(3) { animation-delay: 150ms; }
+.fadeInUp:nth-child(4) { animation-delay: 200ms; }
+.fadeInUp:nth-child(5) { animation-delay: 250ms; }
+.fadeInUp:nth-child(6) { animation-delay: 300ms; }
+.fadeInUp:nth-child(7) { animation-delay: 350ms; }
+.fadeInUp:nth-child(8) { animation-delay: 400ms; }
+.fadeInUp:nth-child(9) { animation-delay: 450ms; }
+.fadeInUp:nth-child(10) { animation-delay: 500ms; }
+.fadeInUp:nth-child(11) { animation-delay: 550ms; }
+.fadeInUp:nth-child(12) { animation-delay: 600ms; }
+.fadeInUp:nth-child(13) { animation-delay: 650ms; }
+.fadeInUp:nth-child(14) { animation-delay: 700ms; }
+.fadeInUp:nth-child(15) { animation-delay: 750ms; }
+.fadeInUp:nth-child(16) { animation-delay: 800ms; }
+.fadeInUp:nth-child(17) { animation-delay: 850ms; }
+.fadeInUp:nth-child(18) { animation-delay: 900ms; }
+.fadeInUp:nth-child(19) { animation-delay: 950ms; }
+.fadeInUp:nth-child(20) { animation-delay: 1000ms; }
