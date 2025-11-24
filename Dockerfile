@@ -6,7 +6,7 @@ FROM node:20-alpine as development
 WORKDIR /app
 
 # Copy package files (build context is ./chatbot-app for local development)
-COPY chatbot-app/package*.json ./
+COPY package*.json ./
 
 # Install all dependencies (including dev dependencies for Vite)
 RUN npm install --legacy-peer-deps
@@ -15,7 +15,7 @@ RUN npm install --legacy-peer-deps
 RUN npx vite --version
 
 # Copy source code
-COPY chatbot-app/ .
+COPY . .
 
 # Make startup script executable
 RUN chmod +x start-dev.sh
