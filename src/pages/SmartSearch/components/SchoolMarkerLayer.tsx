@@ -41,43 +41,60 @@ import './SchoolMarkerLayer.css';
 const MAX_MARKERS = 2000;
 
 /**
- * Create school cluster icon
- * Phase 2.21: Mono-chrome cluster matching property price marker style
+ * Create school cluster icon - Google Maps style
+ * Phase 2.24: Amber/orange cluster matching Google Maps education markers
  * @param cluster - Leaflet MarkerCluster instance
  * @returns Leaflet DivIcon
  */
 const createSchoolClusterIcon = (cluster: any): L.DivIcon => {
   const count = cluster.getChildCount();
 
-  // Phase 2.21: Unified mono-chrome cluster style
-  // Background: 70% gray (#B3B3B3)
+  // Phase 2.24: Google Maps education style (amber/orange)
+  // Background: #F9A825 (amber)
   // Border: 2px white
-  // Text: Black, 13px, 600 weight
+  // Text: White, 13px, 600 weight
+  // Icon: White graduation cap
   const html = `
-    <div class="school-cluster-marker">
-      <div class="school-cluster-label">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="#0b2d2c"
-          xmlns="http://www.w3.org/2000/svg"
-          style="flex-shrink: 0;"
-        >
-          <path d="M5 13.18v4c0 .55.45 1 1 1h1v4h6v-4h2v4h6v-4h1c.55 0 1-.45 1-1v-4l-8-5-8 5zM12 7.5c1.1 0 2-1.1 2-2.5s-.9-2.5-2-2.5-2 1.1-2 2.5.9 2.5 2 2.5z"/>
-        </svg>
-        <span class="school-cluster-count">${count} schools</span>
-      </div>
-      <div class="school-cluster-pointer"></div>
+    <div class="school-cluster-marker" style="
+      background-color: #F9A825;
+      border: 2px solid white;
+      border-radius: 20px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      cursor: pointer;
+    ">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 14"
+        fill="white"
+        xmlns="http://www.w3.org/2000/svg"
+        style="flex-shrink: 0;"
+      >
+        <!-- Graduation cap icon -->
+        <polygon points="8,0 0,4 8,8 16,4" />
+        <path d="M3 5.5v3.5c0 0.8 2.2 1.5 5 1.5s5-0.7 5-1.5V5.5L8 8 3 5.5z" />
+        <rect x="7" y="5" width="2" height="4" />
+        <circle cx="8" cy="10" r="1.2" />
+      </svg>
+      <span style="
+        color: white;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+      ">${count} schools</span>
     </div>
   `;
 
   return L.divIcon({
     html,
     className: 'custom-school-cluster-marker',
-    iconSize: [120, 50],
-    iconAnchor: [60, 50],
-    popupAnchor: [0, -50]
+    iconSize: [120, 40],
+    iconAnchor: [60, 20],
+    popupAnchor: [0, -20]
   });
 };
 
@@ -96,42 +113,60 @@ const getSchoolClusterRadius = (zoom: number): number => {
 };
 
 /**
- * Create school marker icon
- * Phase 2.21: Mono-chrome school icon (Material-UI School)
+ * Create school marker icon - Google Maps style pin with school icon
+ * Phase 2.24: Google Maps-style teardrop pin with graduation cap icon
  * @param selected - Whether this school is selected
  * @returns Leaflet DivIcon
  */
 const createSchoolMarkerIcon = (selected: boolean): L.DivIcon => {
-  // Phase 2.21: Mono-chrome styling
-  // Normal: 50% gray (#808080), Size 28px
-  // Selected: Darker gray (#404040), Size 32px
-  const iconColor = selected ? '#404040' : '#808080';
-  const size = selected ? 32 : 28;
+  // Google Maps style: Orange/amber for education, darker when selected
+  // Normal: #F9A825 (amber/yellow like Google education markers)
+  // Selected: #E65100 (deeper orange) with slightly larger size
+  const pinColor = selected ? '#E65100' : '#F9A825';
+  const iconColor = '#FFFFFF'; // White icon inside
+  const width = selected ? 32 : 28;
+  const height = selected ? 42 : 36;
+  const shadowOpacity = selected ? 0.4 : 0.3;
 
+  // Google Maps style teardrop pin with graduation cap icon inside
   return L.divIcon({
-    className: 'school-marker-mono',
+    className: 'school-marker-google-style',
     html: `
       <div style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: ${size}px;
-        height: ${size}px;
+        position: relative;
+        width: ${width}px;
+        height: ${height}px;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,${shadowOpacity}));
       ">
         <svg
-          width="${size}"
-          height="${size}"
-          viewBox="0 0 24 24"
-          fill="${iconColor}"
+          width="${width}"
+          height="${height}"
+          viewBox="0 0 28 36"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <path d="M5 13.18v4c0 .55.45 1 1 1h1v4h6v-4h2v4h6v-4h1c.55 0 1-.45 1-1v-4l-8-5-8 5zM12 7.5c1.1 0 2-1.1 2-2.5s-.9-2.5-2-2.5-2 1.1-2 2.5.9 2.5 2 2.5z"/>
+          <!-- Teardrop pin shape (Google Maps style) -->
+          <path
+            d="M14 0C6.268 0 0 6.268 0 14c0 7.732 14 22 14 22s14-14.268 14-22C28 6.268 21.732 0 14 0z"
+            fill="${pinColor}"
+          />
+          <!-- Inner circle for icon background -->
+          <circle cx="14" cy="12" r="9" fill="${pinColor}" />
+          <!-- Graduation cap icon (Google Maps education style) -->
+          <g transform="translate(6, 5)" fill="${iconColor}">
+            <!-- Cap top -->
+            <polygon points="8,2 0,6 8,10 16,6" />
+            <!-- Cap band and tassel -->
+            <rect x="7" y="6" width="2" height="5" />
+            <circle cx="8" cy="12" r="1.5" />
+            <!-- Book/base -->
+            <path d="M3 8v4c0 1 2.2 2 5 2s5-1 5-2V8L8 10.5 3 8z" />
+          </g>
         </svg>
       </div>
     `,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2)],
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height], // Anchor at bottom center (pin point)
+    popupAnchor: [0, -height + 5],
   });
 };
 
