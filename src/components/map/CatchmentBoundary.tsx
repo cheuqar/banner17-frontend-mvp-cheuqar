@@ -82,20 +82,23 @@ const CatchmentPolygon: React.FC<CatchmentPolygonProps> = ({
     return extractCatchmentCoordinates(catchment);
   }, [catchment]);
 
-  // Determine colors based on catchment level
-  const polygonColor = catchment.properties.catchment_level === 'primary'
+  // Determine border color based on catchment level (now same for all - theme primary)
+  const borderColor = catchment.properties.catchment_level === 'primary'
     ? displayOptions.primaryColor
     : displayOptions.secondaryColor;
 
+  // Use dedicated fill color (desaturated grey-green) or fallback to border color
+  const fillColor = displayOptions.fillColor || borderColor;
+
   // Enhanced styling for selected state
   const polygonStyle = useMemo(() => ({
-    color: polygonColor,
+    color: borderColor,
     weight: isSelected ? displayOptions.weight + 1 : displayOptions.weight,
     opacity: displayOptions.opacity,
-    fillColor: polygonColor,
+    fillColor: fillColor,
     fillOpacity: isSelected ? displayOptions.fillOpacity * 2 : displayOptions.fillOpacity,
     dashArray: isSelected ? '5, 5' : undefined,
-  }), [polygonColor, displayOptions, isSelected]);
+  }), [borderColor, fillColor, displayOptions, isSelected]);
 
   const handleClick = useCallback(() => {
     onClick(catchment);

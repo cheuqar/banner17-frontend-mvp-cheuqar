@@ -4,14 +4,15 @@
  * =====================================================
  *
  * Renders school catchment layers on the map with:
- * - Real catchment polygons (green, solid) for schools with catchment data
+ * - Real catchment polygons for schools with catchment data
  * - 3km radius circles (blue, dashed) for schools without catchments
  * - Hover tooltips showing school name and catchment type
  * - Performance optimization with memoization
  * - Proper z-index layering and error handling
  *
- * Styling:
- * - Green (#4CAF50) for real catchments with 0.2 opacity
+ * Styling (Style4-V2 Theme):
+ * - Desaturated grey-green (#8a9a8a) fill for catchments with 0.2-0.25 opacity
+ * - Theme primary color (#0b2d2c) for catchment borders
  * - Blue (#4A90E2) for 3km circles with 0.1 opacity
  * - Dashed pattern for 3km circles, solid for catchments
  */
@@ -24,12 +25,16 @@ import { selectSelectedSchools } from '../../../store/slices/smartSearch/schoolP
 import { selectShowCatchmentRadius } from '../../../store/slices/smartSearchSlice';
 import type { School } from '../../../types/smartSearch';
 
+// Theme primary color for consistent styling
+const THEME_PRIMARY = '#0b2d2c';
+
 // Constants for styling
 const CATCHMENT_STYLE = {
-  color: '#4CAF50',        // Green for real catchments
+  color: THEME_PRIMARY,    // Primary theme color for border
   weight: 2,
   opacity: 0.8,
-  fillOpacity: 0.2,
+  fillColor: '#8a9a8a',    // Desaturated grey-green for fill
+  fillOpacity: 0.25,
   dashArray: undefined     // Solid line
 };
 
@@ -128,37 +133,18 @@ const convertCatchmentToLeafletFormat = (catchment: any): [number, number][][] |
 
 /**
  * Get catchment style based on school type
+ * All catchments use theme primary color for border with desaturated grey-green fills
  */
 const getCatchmentStyle = (schoolType: string) => {
-  const isPrimary = schoolType?.toLowerCase().includes('primary');
-  const isSecondary = schoolType?.toLowerCase().includes('secondary');
-
-  if (isPrimary) {
-    return {
-      fillColor: '#2196F3',  // Blue for primary
-      fillOpacity: 0.15,
-      color: '#1976D2',      // Darker blue border
-      weight: 2,
-      opacity: 0.8
-    };
-  } else if (isSecondary) {
-    return {
-      fillColor: '#9C27B0',  // Purple for secondary
-      fillOpacity: 0.15,
-      color: '#7B1FA2',      // Darker purple border
-      weight: 2,
-      opacity: 0.8
-    };
-  } else {
-    // Infants or other types
-    return {
-      fillColor: '#4CAF50',  // Green for infants
-      fillOpacity: 0.15,
-      color: '#388E3C',      // Darker green border
-      weight: 2,
-      opacity: 0.8
-    };
-  }
+  // All school types use the same desaturated grey-green with theme primary border
+  // This creates a cohesive, professional look that doesn't distract from property markers
+  return {
+    fillColor: '#8a9a8a',    // Desaturated grey-green for all catchments
+    fillOpacity: 0.2,
+    color: THEME_PRIMARY,    // Theme primary color for border
+    weight: 2,
+    opacity: 0.8
+  };
 };
 
 /**

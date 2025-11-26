@@ -226,6 +226,9 @@ export interface CatchmentDisplayOptions {
   /** Secondary school boundary color */
   secondaryColor: string;
 
+  /** Fill color for catchment polygons (optional, uses desaturated grey-green by default) */
+  fillColor?: string;
+
   /** Boundary line weight */
   weight: number;
 
@@ -335,13 +338,15 @@ export const calculateCatchmentBounds = (
 
 /**
  * Default display options for catchment boundaries
+ * Style4-V2 Theme: Desaturated grey-green fill with theme primary border
  */
 export const DEFAULT_CATCHMENT_DISPLAY_OPTIONS: CatchmentDisplayOptions = {
-  primaryColor: '#2563eb', // Blue for primary schools
-  secondaryColor: '#16a34a', // Green for secondary schools
+  primaryColor: '#0b2d2c', // Theme primary for border (all school types)
+  secondaryColor: '#0b2d2c', // Theme primary for border (all school types)
+  fillColor: '#8a9a8a', // Desaturated grey-green for all catchments
   weight: 2,
   opacity: 0.8,
-  fillOpacity: 0.1,
+  fillOpacity: 0.2,
   interactive: true,
 };
 
