@@ -12,7 +12,7 @@ import SpatialFilterConflictDialog from './components/SpatialFilterConflictDialo
 import SearchErrorAlert from './components/SearchErrorAlert'; // Phase 2.5.10
 // Phase 2.17.5 FIX: Removed FloatingResultsButton import (now in FloatingMapControls)
 import { useSmartSearch } from './hooks/useSmartSearch';
-import { performSearch, selectPropertyPanelVisible, type Amenity } from '../../store/slices/smartSearchSlice';
+import { performSearch, loadMoreProperties, selectPropertyPanelVisible, MAX_PROPERTIES_LIMIT, type Amenity } from '../../store/slices/smartSearchSlice';
 import type { RootState, AppDispatch } from '../../store';
 import type { School } from '../../types/smartSearch';
 import { useAppSelector } from '../../store';
@@ -40,6 +40,11 @@ const SmartSearchPage: React.FC = () => {
 
     // Track if initial search has been dispatched to prevent duplicates
     const initialSearchDispatched = React.useRef(false);
+
+    // Phase 2.41 FIX: Track if this is the first render to skip filter change effect on mount
+    // This prevents the filter change useEffect from triggering a second search on initial load,
+    // which would interfere with progressive loading
+    const isFirstRender = React.useRef(true);
 
     // NEW: Phase 2.10.7.5 - Map ref for school centering
     const mapRef = useRef<any>(null);
@@ -121,6 +126,18 @@ const SmartSearchPage: React.FC = () => {
           initialSearchDispatched: initialSearchDispatched.current,
           timestamp: new Date().toISOString(),
         });
+
+        // Phase 2.41 FIX: If properties already exist (from Redux persist), mark as initialized
+        // This enables progressive loading even when data comes from cache
+        if (properties.length > 0 && !initialSearchDispatched.current) {
+            console.log('[SmartSearch] Properties already exist (from persist), marking as initialized', {
+              propertiesLength: properties.length,
+              timestamp: new Date().toISOString(),
+            });
+            initialSearchDispatched.current = true;
+            return; // Don't dispatch new search, just enable progressive loading
+        }
+
         if (properties.length === 0 && !loading && !initialSearchDispatched.current) {
             console.log('[SmartSearch] Dispatching initial performSearch', {
               timestamp: new Date().toISOString(),
@@ -134,12 +151,24 @@ const SmartSearchPage: React.FC = () => {
     // Watches filter state and automatically performs search without requiring "Apply Filters" button
     const filters = useSelector((state: RootState) => state.smartSearch.filters);
     const searchPending = useSelector((state: RootState) => state.smartSearch.searchPending);
+    // Phase 2.41: Selectors for auto-progressive loading
+    const totalCount = useSelector((state: RootState) => state.smartSearch.totalCount);
+    const hasMore = totalCount > properties.length;
 
     // Phase 2.28.7 FIX: Serialize array to prevent infinite re-renders
     // Arrays create new references on every Redux update, causing useEffect to trigger infinitely
     const propertyTypesKey = filters.propertyTypes.sort().join(',');
 
     useEffect(() => {
+        // Phase 2.41 FIX: Skip on first render to prevent interfering with initial search
+        // The filter change effect should only fire when user actually changes filters,
+        // not on initial mount where it would create a duplicate search that resets progressive loading
+        if (isFirstRender.current) {
+            isFirstRender.current = false;
+            console.log('[SmartSearch] Skipping filter change effect on first render');
+            return;
+        }
+
         // Skip if initial search hasn't been dispatched yet
         if (!initialSearchDispatched.current) {
             return;
@@ -180,6 +209,48 @@ const SmartSearchPage: React.FC = () => {
         // searchPending should only be used as a guard check, not trigger the effect
         // Including it caused infinite loop: searchPending changes → effect runs → setTimeout → search → searchPending changes → loop
     ]);
+
+    // Phase 2.41: Auto-progressive loading effect
+    // Automatically loads more properties until MAX_PROPERTIES_LIMIT or no more results
+    useEffect(() => {
+        // Debug: Log current state for progressive loading
+        console.log('[SmartSearch] Progressive load check:', {
+            searchPending,
+            hasMore,
+            propertiesLength: properties.length,
+            totalCount,
+            maxLimit: MAX_PROPERTIES_LIMIT,
+            initialSearchDispatched: initialSearchDispatched.current,
+            willTrigger: !searchPending && hasMore && properties.length > 0 && properties.length < MAX_PROPERTIES_LIMIT && initialSearchDispatched.current,
+        });
+
+        // Guard conditions:
+        // 1. Search not in progress
+        // 2. More properties available from backend
+        // 3. Under max limit (2000)
+        // 4. Initial load completed (properties.length > 0)
+        // 5. Initial search was dispatched
+        if (
+            !searchPending &&
+            hasMore &&
+            properties.length > 0 &&
+            properties.length < MAX_PROPERTIES_LIMIT &&
+            initialSearchDispatched.current
+        ) {
+            // Small delay to prevent rapid-fire requests and allow UI to render
+            const loadMoreTimer = setTimeout(() => {
+                console.log('[SmartSearch] Auto-progressive loading - DISPATCHING:', {
+                    currentCount: properties.length,
+                    totalAvailable: totalCount,
+                    maxLimit: MAX_PROPERTIES_LIMIT,
+                    timestamp: new Date().toISOString(),
+                });
+                dispatch(loadMoreProperties());
+            }, 300);
+
+            return () => clearTimeout(loadMoreTimer);
+        }
+    }, [properties.length, hasMore, searchPending, totalCount, dispatch]);
 
     // Feature 003: handleSearch function removed - SearchHeader manages its own address search
 

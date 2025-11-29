@@ -36,6 +36,7 @@ const getCategoryColor = (category: string): string => {
   if (normalized.includes('tourist') || normalized.includes('attraction')) return '#388e3c'; // Green
   if (normalized.includes('beach')) return '#0288d1'; // Light Blue
   if (normalized.includes('sport')) return '#c2185b'; // Pink
+  if (normalized.includes('child') || normalized.includes('care')) return '#e91e63'; // Pink (Child Care)
   return '#666'; // Default gray
 };
 

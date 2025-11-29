@@ -126,6 +126,7 @@ const getDefaultState = (): SmartSearchState => ({
   searchPending: false,
   propertyPanelVisible: true,
   filtersOverlayVisible: false,
+  showSuburbBoundaries: false,
 });
 
 describe('FilterDialog - Phase 2.18.1', () => {

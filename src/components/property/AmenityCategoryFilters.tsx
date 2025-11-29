@@ -28,6 +28,7 @@ import {
   Attractions,
   ClearAll,
   SelectAll,
+  ChildCare,
 } from '@mui/icons-material';
 
 import type { AmenitiesByCategory } from '../../services/amenitiesService';
@@ -53,6 +54,11 @@ export const AMENITY_CATEGORIES = {
     label: 'Schools & Education',
     icon: School,
     color: '#ff9800', // orange
+  },
+  child_care: {
+    label: 'Child Care',
+    icon: ChildCare,
+    color: '#e91e63', // pink
   },
   beaches: {
     label: 'Beaches & Waterfront',

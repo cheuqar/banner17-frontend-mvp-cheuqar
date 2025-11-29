@@ -9,6 +9,7 @@ import {
   selectPagedProperties,
   selectPaginationInfo,
   setPaginationPage,
+  MAX_PROPERTIES_LIMIT,
 } from '../../../store/slices/smartSearchSlice';
 
 interface PropertyListProps {
@@ -24,10 +25,18 @@ const PropertyList: React.FC<PropertyListProps> = ({
     const loading = useSelector((state: RootState) => state.smartSearch.loading);
     const error = useSelector((state: RootState) => state.smartSearch.error);
     const totalCount = useSelector((state: RootState) => state.smartSearch.totalCount);
+    // Phase 2.41: Track searchPending for progressive loading indicator
+    const searchPending = useSelector((state: RootState) => state.smartSearch.searchPending);
+    const properties = useSelector((state: RootState) => state.smartSearch.properties);
 
     // NEW: Use pagination selectors from Redux
     const pagedProperties = useSelector(selectPagedProperties);
     const paginationInfo = useSelector(selectPaginationInfo);
+
+    // Phase 2.41: Calculate if we're in progressive loading mode
+    // (loading more properties while already having some displayed)
+    const isProgressiveLoading = searchPending && properties.length > 0 && properties.length < MAX_PROPERTIES_LIMIT;
+    const hasMoreToLoad = totalCount > properties.length && properties.length < MAX_PROPERTIES_LIMIT;
 
     // UX FIX: Ref to scroll property list container to top
     const listContainerRef = useRef<HTMLDivElement>(null);
@@ -150,6 +159,59 @@ const PropertyList: React.FC<PropertyListProps> = ({
                     </Grid>
                 ))}
             </Grid>
+
+            {/* Phase 2.41: Progressive Loading Indicator */}
+            {isProgressiveLoading && (
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1.5,
+                        py: 2,
+                        mt: 2,
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                    }}
+                >
+                    <CircularProgress size={20} thickness={4} />
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: '#666666',
+                            fontSize: '13px',
+                        }}
+                    >
+                        Loading more properties... ({properties.length.toLocaleString()} of {Math.min(totalCount, MAX_PROPERTIES_LIMIT).toLocaleString()})
+                    </Typography>
+                </Box>
+            )}
+
+            {/* Phase 2.41: Show count info when progressive loading is complete */}
+            {!isProgressiveLoading && properties.length >= MAX_PROPERTIES_LIMIT && (
+                <Box
+                    sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        py: 1.5,
+                        mt: 2,
+                        borderTop: '1px solid',
+                        borderColor: 'divider',
+                    }}
+                >
+                    <Typography
+                        variant="body2"
+                        sx={{
+                            color: '#999999',
+                            fontSize: '12px',
+                            fontStyle: 'italic',
+                        }}
+                    >
+                        Showing maximum of {MAX_PROPERTIES_LIMIT.toLocaleString()} properties
+                    </Typography>
+                </Box>
+            )}
 
             {/* Pagination Controls */}
             {paginationInfo.totalPages > 1 && (

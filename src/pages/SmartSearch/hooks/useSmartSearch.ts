@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { INITIAL_PROPERTY_LIMIT } from '../../../store/slices/smartSearchSlice';
 
 interface Property {
     id: string;
@@ -73,7 +74,7 @@ export const useSmartSearch = (): UseSmartSearchReturn => {
                         property_type: filters.propertyType,
                         suburb: filters.suburb,
                     },
-                    limit: 200
+                    limit: INITIAL_PROPERTY_LIMIT
                 })
             });
 

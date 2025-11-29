@@ -9,6 +9,12 @@ import type * as GeoJSON from 'geojson';
 // Use GeoJSON.Feature instead of @turf/helpers Feature
 type Feature<G extends GeoJSON.Geometry = GeoJSON.Geometry, P = GeoJSON.GeoJsonProperties> = GeoJSON.Feature<G, P>;
 
+// Phase 2.41: Property loading constants for progressive loading
+// Initial load of 500, then auto-load 500 more batches until 2000 max
+export const INITIAL_PROPERTY_LIMIT = 500;
+export const LOAD_MORE_BATCH_SIZE = 500;
+export const MAX_PROPERTIES_LIMIT = 2000;
+
 export type PanelType = 'address' | 'amenities' | 'schools' | null;
 
 export interface MapControlsState {
@@ -189,6 +195,8 @@ export interface SmartSearchState {
   // NEW: Phase 2.17.1 - Collapsible Property Panel State
   propertyPanelVisible: boolean;      // Panel visibility toggle (default: true)
   filtersOverlayVisible: boolean;     // Filter drawer state (default: false)
+  // NEW: Phase 2.38 - Suburb Boundaries Overlay
+  showSuburbBoundaries: boolean;      // Toggle suburb boundary visualization on map (default: false)
 }
 
 const initialState: SmartSearchState = {
@@ -306,6 +314,8 @@ const initialState: SmartSearchState = {
   // NEW: Phase 2.17.1 - Collapsible Property Panel State
   propertyPanelVisible: true,         // Default: panel open
   filtersOverlayVisible: false,       // Default: drawer closed
+  // NEW: Phase 2.38 - Suburb Boundaries Overlay
+  showSuburbBoundaries: false,        // Default: boundaries hidden
 };
 
 // Async thunk for performing property search
@@ -336,7 +346,7 @@ export const performSearch = createAsyncThunk(
       property_type: filters.propertyTypes.length > 0 ? filters.propertyTypes : null,
       listing_type: filters.listingType,
       sort_by: sortBy,
-      limit: 200,
+      limit: INITIAL_PROPERTY_LIMIT,
       offset: 0,
     };
 
@@ -515,7 +525,7 @@ export const searchByBounds = createAsyncThunk(
       property_type: filters.propertyTypes.length > 0 ? filters.propertyTypes : null,
       listing_type: filters.listingType,
       sort_by: sortBy,
-      limit: 200,
+      limit: INITIAL_PROPERTY_LIMIT,
       offset: 0,
       // Add bbox filter
       bbox: bounds,
@@ -581,8 +591,8 @@ export const loadMoreProperties = createAsyncThunk(
     const selectedSchools = state.schoolPanel?.selectedSchools || [];
     const showCatchmentRadius = schools.showCatchmentRadius;
 
-    // Don't load if at max limit (400)
-    if (displayedCount >= 400) {
+    // Phase 2.41: Don't load if at max limit (2000)
+    if (displayedCount >= MAX_PROPERTIES_LIMIT) {
       return rejectWithValue('Maximum limit reached');
     }
 
@@ -600,7 +610,7 @@ export const loadMoreProperties = createAsyncThunk(
       property_type: filters.propertyTypes.length > 0 ? filters.propertyTypes : null,
       listing_type: filters.listingType,
       sort_by: sortBy, // Include sort order in Show More requests
-      limit: 200, // Load next 200
+      limit: LOAD_MORE_BATCH_SIZE, // Phase 2.41: Load next 500
       offset: paginationOffset,
     };
 
@@ -1461,6 +1471,11 @@ const smartSearchSlice = createSlice({
       state.filtersOverlayVisible = action.payload;
       console.log('[FiltersOverlay] Set visibility:', action.payload);
     },
+    // NEW: Phase 2.38 - Suburb Boundaries Overlay
+    setShowSuburbBoundaries: (state, action: PayloadAction<boolean>) => {
+      state.showSuburbBoundaries = action.payload;
+      console.log('[SuburbBoundaries] Set visibility:', action.payload);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -1487,6 +1502,14 @@ const smartSearchSlice = createSlice({
         state.properties = action.payload.properties;
         state.totalCount = action.payload.total_count;
         state.displayedCount = action.payload.properties.length;
+        // Phase 2.41 DEBUG: Log progressive loading relevant values
+        console.log('[performSearch.fulfilled] Progressive loading values:', {
+          propertiesLength: state.properties.length,
+          totalCount: state.totalCount,
+          hasMore: state.totalCount > state.properties.length,
+          searchPending: false, // Will be set after this
+          timestamp: new Date().toISOString(),
+        });
         state.paginationOffset = action.payload.properties.length;
         state.filtersApplied = action.payload.filters_applied;
         // Clear search bounds when doing regular search
@@ -1742,6 +1765,8 @@ export const {
   setCategoryFilters,
   // Phase 2.32.6: Removed setRadiusKm action - aligned with school markers bbox-only pattern
   setShowAmenitiesOnMap,
+  // NEW: Phase 2.38 - Suburb Boundaries Overlay
+  setShowSuburbBoundaries,
 } = smartSearchSlice.actions;
 
 // Phase 2.10.1: Selectors for pagination state
@@ -1817,5 +1842,9 @@ export const selectTotalCount = (state: { smartSearch: SmartSearchState }) =>
 // Phase 2.22: Selector for search pending state (used by search progress indicator)
 export const selectSearchPending = (state: { smartSearch: SmartSearchState }) =>
   state.smartSearch.searchPending;
+
+// Phase 2.38: Selector for suburb boundaries visibility
+export const selectShowSuburbBoundaries = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.showSuburbBoundaries;
 
 export default smartSearchSlice.reducer;

@@ -110,6 +110,7 @@ const getDefaultState = (): SmartSearchState => ({
   // Phase 2.17.1: Collapsible Property Panel defaults
   propertyPanelVisible: true,
   filtersOverlayVisible: false,
+  showSuburbBoundaries: false,
 });
 
 describe('smartSearchSlice - Phase 2.17.1 Collapsible Property Panel', () => {

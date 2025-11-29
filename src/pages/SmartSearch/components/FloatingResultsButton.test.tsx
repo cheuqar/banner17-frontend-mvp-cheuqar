@@ -99,6 +99,7 @@ describe('FloatingResultsButton - Phase 2.17.3', () => {
       },
       propertyPanelVisible: false,
       filtersOverlayVisible: false,
+      showSuburbBoundaries: false,
       ...initialState,
     };
 

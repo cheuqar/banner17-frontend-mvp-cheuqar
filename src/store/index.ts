@@ -1,7 +1,60 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { persistStore, persistReducer } from 'redux-persist';
+import { persistStore, persistReducer, createTransform } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
 import { combineReducers } from '@reduxjs/toolkit';
+
+// Phase 2.41: Transform to exclude large arrays from smartSearch persistence
+// This prevents QuotaExceededError when storing 2000+ properties in localStorage
+const smartSearchTransform = createTransform(
+  // Transform state being persisted (outbound)
+  (inboundState: any, key: string | number) => {
+    if (key !== 'smartSearch') return inboundState;
+
+    // Exclude large arrays - they're transient data that gets reloaded on page visit
+    const {
+      properties,
+      paginationState,
+      ...rest
+    } = inboundState;
+
+    // Also exclude schools.data and amenities.data if they exist
+    const cleanedRest = { ...rest };
+    if (cleanedRest.schools) {
+      cleanedRest.schools = { ...cleanedRest.schools, data: [] };
+    }
+    if (cleanedRest.amenities) {
+      cleanedRest.amenities = { ...cleanedRest.amenities, data: [] };
+    }
+
+    console.log('[Redux Persist] Excluding large arrays from smartSearch:', {
+      propertiesExcluded: properties?.length || 0,
+      schoolsDataExcluded: inboundState.schools?.data?.length || 0,
+      amenitiesDataExcluded: inboundState.amenities?.data?.length || 0,
+    });
+
+    return cleanedRest;
+  },
+  // Transform state being rehydrated (inbound)
+  (outboundState: any, key: string | number) => {
+    if (key !== 'smartSearch') return outboundState;
+
+    // Restore arrays as empty - will be populated by API calls
+    return {
+      ...outboundState,
+      properties: [],
+      totalCount: 0,
+      displayedCount: 0,
+      paginationOffset: 0,
+      paginationState: {
+        currentPage: 1,
+        itemsPerPage: 25,
+        visibleProperties: [],
+        totalVisibleCount: 0,
+        totalPages: 0,
+      },
+    };
+  }
+);
 import userReducer from './slices/userSlice';
 import propertyReducer from './slices/propertySlice';
 import chatReducer from './slices/chatSlice';
@@ -20,6 +73,10 @@ const persistConfig = {
   key: 'listez-chatbot',
   storage,
   whitelist: ['user', 'property', 'chat', 'smartSearch', 'schoolPanel', 'schoolBbox', 'mapBounds', 'searchFilters', 'theme', 'mapTileStyle'], // Persist smartSearch for school selections, schoolPanel state, schoolBbox for bbox schools, mapBounds for map viewport, searchFilters for header state, theme for user theme preference, and mapTileStyle for map tile style preference
+  // Phase 2.41: Transform to exclude large properties array from smartSearch
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  transforms: [smartSearchTransform as any],
+  // Phase 2.41 v16: Exclude properties array from persistence to prevent QuotaExceededError
   // Phase 2.33 v15: Add 3 new OSM tile styles (CyclOSM, France, Topo)
   // Phase 2.32.6 v14: Remove radiusKm from amenities (bbox-only pattern)
   // Phase 2.32.1 v13: Convert amenities to single-selection
@@ -27,7 +84,7 @@ const persistConfig = {
   // Phase 2.22 BUG FIX v11: Reliable migration-based approach
   // Transforms were unreliable for this use case, reverting to proven migrate() solution
   blacklist: [],
-  version: 15, // Phase 2.33 v15: Add 3 new OSM tile styles
+  version: 16, // Phase 2.41 v16: Exclude properties from persistence
   migrate: (state: any) => {
     // Phase 2.8: Add autoSearchState to existing persisted state
     if (state?.smartSearch && !state.smartSearch.autoSearchState) {

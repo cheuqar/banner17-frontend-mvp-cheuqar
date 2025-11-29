@@ -181,6 +181,7 @@ const getDefaultState = (): SmartSearchState => ({
   searchPending: false,
   propertyPanelVisible: true,
   filtersOverlayVisible: false,
+  showSuburbBoundaries: false,
 });
 
 describe('SmartSearch - Phase 2.17.6: Responsive Behavior', () => {

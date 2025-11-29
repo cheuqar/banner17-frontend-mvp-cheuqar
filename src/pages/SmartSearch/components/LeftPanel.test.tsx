@@ -110,6 +110,7 @@ const getDefaultState = (): SmartSearchState => ({
   searchPending: false,
   propertyPanelVisible: true,
   filtersOverlayVisible: false,
+  showSuburbBoundaries: false,
 });
 
 describe('LeftPanel - Phase 2.17.2 & 2.18.3', () => {
