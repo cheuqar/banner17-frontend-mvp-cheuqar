@@ -585,11 +585,26 @@ export const loadMoreProperties = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     const state = getState() as any; // Use any to access multiple slices
 
-    const { filters, sortBy, paginationOffset, displayedCount, mapBounds, userDefinedMapArea, schools, activeSpatialFilter, drawnPolygonUnion } = state.smartSearch;
+    const { filters, sortBy, paginationOffset, displayedCount, totalCount, mapBounds, userDefinedMapArea, schools, activeSpatialFilter, drawnPolygonUnion, searchPending } = state.smartSearch;
 
     // FIX: Phase 2.14 - Read selected schools from schoolPanel slice (correct location)
     const selectedSchools = state.schoolPanel?.selectedSchools || [];
     const showCatchmentRadius = schools.showCatchmentRadius;
+
+    // Phase 2.41 FIX: Don't load if search is pending (filters changed, data is stale)
+    if (searchPending) {
+      console.log('[loadMoreProperties] Guard: Search pending, rejecting to prevent stale offset');
+      return rejectWithValue('Search pending');
+    }
+
+    // Phase 2.41 FIX: Don't load if offset exceeds totalCount (stale data from previous search)
+    if (paginationOffset >= totalCount && totalCount > 0) {
+      console.log('[loadMoreProperties] Guard: Offset exceeds totalCount, rejecting stale request', {
+        paginationOffset,
+        totalCount,
+      });
+      return rejectWithValue('Offset exceeds total count');
+    }
 
     // Phase 2.41: Don't load if at max limit (2000)
     if (displayedCount >= MAX_PROPERTIES_LIMIT) {
@@ -1491,8 +1506,15 @@ const smartSearchSlice = createSlice({
         state.error = null;
         // Phase 2.22: Mark search as pending
         state.searchPending = true;
-        console.log('[performSearch.pending] Reducer executed - searchPending is now true', {
+        // Phase 2.41 FIX: Reset pagination state to prevent stale offset in loadMoreProperties
+        // When filters change, we need to start fresh - old offset causes "range not satisfiable" errors
+        state.paginationOffset = 0;
+        state.properties = [];
+        state.totalCount = 0;
+        state.displayedCount = 0;
+        console.log('[performSearch.pending] Reducer executed - searchPending is now true, pagination reset', {
           after: state.searchPending,
+          paginationOffset: state.paginationOffset,
           timestamp: new Date().toISOString(),
         });
       })
@@ -1546,6 +1568,11 @@ const smartSearchSlice = createSlice({
         state.error = null;
         // Phase 2.22: Mark search as pending
         state.searchPending = true;
+        // Phase 2.41 FIX: Reset pagination state to prevent stale offset in loadMoreProperties
+        state.paginationOffset = 0;
+        state.properties = [];
+        state.totalCount = 0;
+        state.displayedCount = 0;
       })
       .addCase(searchByBounds.fulfilled, (state, action) => {
         state.loading = false;
@@ -1596,8 +1623,9 @@ const smartSearchSlice = createSlice({
       // loadMoreProperties reducers
       .addCase(loadMoreProperties.pending, (state) => {
         state.loading = true;
-        // Phase 2.22: Mark search as pending
-        state.searchPending = true;
+        // Phase 2.41 FIX: Do NOT set searchPending here - it causes infinite loop
+        // searchPending is only for main searches (performSearch, searchByBounds)
+        // loadMoreProperties uses `loading` flag instead
       })
       .addCase(loadMoreProperties.fulfilled, (state, action) => {
         state.loading = false;
@@ -1628,14 +1656,18 @@ const smartSearchSlice = createSlice({
         // Reset to page 1 when new properties loaded to show them immediately
         state.paginationState.currentPage = 1;
         console.log(`[LoadMore] Recalculated visible properties: ${visible.length}, Pages: ${state.paginationState.totalPages}`);
-        // Phase 2.22: Clear pending flag on success
-        state.searchPending = false;
+        // Phase 2.41 FIX: Do NOT clear searchPending here - it's not set by loadMore
       })
       .addCase(loadMoreProperties.rejected, (state, action) => {
         state.loading = false;
-        state.error = (action.payload as string) || action.error.message || 'Failed to load more properties';
-        // Phase 2.22: Clear pending flag on error
-        state.searchPending = false;
+        // Phase 2.41 FIX: Don't set error for expected guard rejections
+        const errorMessage = (action.payload as string) || action.error.message || '';
+        if (!errorMessage.includes('Search pending') &&
+            !errorMessage.includes('Maximum limit reached') &&
+            !errorMessage.includes('Offset exceeds total count')) {
+          state.error = errorMessage || 'Failed to load more properties';
+        }
+        // Phase 2.41 FIX: Do NOT clear searchPending here - it's not set by loadMore
       })
       // fetchSchools reducers (Phase 2.5.9)
       .addCase(fetchSchools.pending, (state) => {

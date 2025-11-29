@@ -77,6 +77,7 @@ const persistConfig = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transforms: [smartSearchTransform as any],
   // Phase 2.41 v16: Exclude properties array from persistence to prevent QuotaExceededError
+  // Phase 2.41 v17: Fix lowercase propertyTypes (must match database: House, Apartment, etc.)
   // Phase 2.33 v15: Add 3 new OSM tile styles (CyclOSM, France, Topo)
   // Phase 2.32.6 v14: Remove radiusKm from amenities (bbox-only pattern)
   // Phase 2.32.1 v13: Convert amenities to single-selection
@@ -84,7 +85,7 @@ const persistConfig = {
   // Phase 2.22 BUG FIX v11: Reliable migration-based approach
   // Transforms were unreliable for this use case, reverting to proven migrate() solution
   blacklist: [],
-  version: 16, // Phase 2.41 v16: Exclude properties from persistence
+  version: 17, // Phase 2.41 v17: Fix lowercase propertyTypes to match database
   migrate: (state: any) => {
     // Phase 2.8: Add autoSearchState to existing persisted state
     if (state?.smartSearch && !state.smartSearch.autoSearchState) {
@@ -324,9 +325,39 @@ const persistConfig = {
       }
     }
 
-    console.log('[Redux Persist] Migrate function v11 completed', {
+    // Phase 2.41 v17: Fix lowercase propertyTypes to match database (case-sensitive)
+    // Database stores: House, Apartment, Townhouse, Unit, Land, Studio
+    // Old frontend sent: house, apartment, townhouse, unit, land, studio
+    if (state?.smartSearch?.filters?.propertyTypes) {
+      const oldTypes = state.smartSearch.filters.propertyTypes;
+      const lowercaseToCapitalized: Record<string, string> = {
+        'house': 'House',
+        'apartment': 'Apartment',
+        'townhouse': 'Townhouse',
+        'unit': 'Unit',
+        'land': 'Land',
+        'studio': 'Studio',
+      };
+
+      const hasLowercaseTypes = oldTypes.some((t: string) => lowercaseToCapitalized[t]);
+      if (hasLowercaseTypes) {
+        console.log('[Redux Persist] Migrating propertyTypes to v17 (fixing case-sensitivity)', {
+          oldTypes,
+        });
+        // Convert lowercase to capitalized, or keep as-is if already correct
+        state.smartSearch.filters.propertyTypes = oldTypes.map((t: string) =>
+          lowercaseToCapitalized[t] || t
+        );
+        console.log('[Redux Persist] PropertyTypes migrated:', {
+          newTypes: state.smartSearch.filters.propertyTypes,
+        });
+      }
+    }
+
+    console.log('[Redux Persist] Migrate function v17 completed', {
       hasSmartSearch: !!state?.smartSearch,
       searchPending: state?.smartSearch?.searchPending,
+      propertyTypes: state?.smartSearch?.filters?.propertyTypes,
       timestamp: new Date().toISOString(),
     });
 

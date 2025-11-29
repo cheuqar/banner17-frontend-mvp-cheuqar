@@ -157,7 +157,8 @@ const SmartSearchPage: React.FC = () => {
 
     // Phase 2.28.7 FIX: Serialize array to prevent infinite re-renders
     // Arrays create new references on every Redux update, causing useEffect to trigger infinitely
-    const propertyTypesKey = filters.propertyTypes.sort().join(',');
+    // Phase 2.41 FIX: Create copy before sort() - Redux state arrays are read-only
+    const propertyTypesKey = [...filters.propertyTypes].sort().join(',');
 
     useEffect(() => {
         // Phase 2.41 FIX: Skip on first render to prevent interfering with initial search
@@ -213,30 +214,30 @@ const SmartSearchPage: React.FC = () => {
     // Phase 2.41: Auto-progressive loading effect
     // Automatically loads more properties until MAX_PROPERTIES_LIMIT or no more results
     useEffect(() => {
-        // Debug: Log current state for progressive loading
-        console.log('[SmartSearch] Progressive load check:', {
-            searchPending,
-            hasMore,
-            propertiesLength: properties.length,
-            totalCount,
-            maxLimit: MAX_PROPERTIES_LIMIT,
-            initialSearchDispatched: initialSearchDispatched.current,
-            willTrigger: !searchPending && hasMore && properties.length > 0 && properties.length < MAX_PROPERTIES_LIMIT && initialSearchDispatched.current,
-        });
-
         // Guard conditions:
-        // 1. Search not in progress
-        // 2. More properties available from backend
-        // 3. Under max limit (2000)
-        // 4. Initial load completed (properties.length > 0)
-        // 5. Initial search was dispatched
-        if (
+        // 1. Not currently loading (prevents rapid-fire during loadMore)
+        // 2. Main search not in progress
+        // 3. More properties available from backend
+        // 4. Under max limit (2000)
+        // 5. Initial load completed (properties.length > 0)
+        // 6. Initial search was dispatched
+        const shouldLoadMore = !loading &&
             !searchPending &&
             hasMore &&
             properties.length > 0 &&
             properties.length < MAX_PROPERTIES_LIMIT &&
-            initialSearchDispatched.current
-        ) {
+            initialSearchDispatched.current;
+
+        // Debug: Log current state for progressive loading (less verbose)
+        if (shouldLoadMore) {
+            console.log('[SmartSearch] Progressive load check - WILL TRIGGER:', {
+                propertiesLength: properties.length,
+                totalCount,
+                maxLimit: MAX_PROPERTIES_LIMIT,
+            });
+        }
+
+        if (shouldLoadMore) {
             // Small delay to prevent rapid-fire requests and allow UI to render
             const loadMoreTimer = setTimeout(() => {
                 console.log('[SmartSearch] Auto-progressive loading - DISPATCHING:', {
@@ -250,7 +251,7 @@ const SmartSearchPage: React.FC = () => {
 
             return () => clearTimeout(loadMoreTimer);
         }
-    }, [properties.length, hasMore, searchPending, totalCount, dispatch]);
+    }, [properties.length, hasMore, searchPending, loading, totalCount, dispatch]);
 
     // Feature 003: handleSearch function removed - SearchHeader manages its own address search
 

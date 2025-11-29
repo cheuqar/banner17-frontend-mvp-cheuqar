@@ -74,7 +74,7 @@ describe('PropertyTypeSelector Component', () => {
   it('shows selected property type label', async () => {
     const store = createTestStore({
       filters: {
-        propertyTypes: ['house'],
+        propertyTypes: ['House'],
       } as any,
     });
 
@@ -95,7 +95,7 @@ describe('PropertyTypeSelector Component', () => {
   it('shows "Multiple selected" label when multiple types selected', async () => {
     const store = createTestStore({
       filters: {
-        propertyTypes: ['house', 'apartment'],
+        propertyTypes: ['House', 'Apartment'],
       } as any,
     });
 
