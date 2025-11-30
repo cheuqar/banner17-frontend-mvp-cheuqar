@@ -1,5 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button } from '@mui/material';
+import Bugsnag from '@bugsnag/js';
+import { isBugsnagEnabled } from '../config/bugsnag';
 
 interface ErrorBoundaryProps {
     children: React.ReactNode;
@@ -36,6 +38,15 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
     componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
         // Log error details for debugging
         console.error('Error Boundary caught error:', error, errorInfo);
+
+        // Report to BugSnag with component stack
+        if (isBugsnagEnabled()) {
+            Bugsnag.notify(error, (event) => {
+                event.addMetadata('react', {
+                    componentStack: errorInfo.componentStack,
+                });
+            });
+        }
     }
 
     handleReload = () => {
