@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import type { Session, User, AuthError, AuthChangeEvent } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
 import type { UserProfile } from '../lib/supabase'
+import Bugsnag from '@bugsnag/js'
+import { isBugsnagEnabled } from '../config/bugsnag'
 
 interface AuthContextType {
   user: User | null
@@ -62,6 +64,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setUser(session?.user || null)
         setIsLoading(false)
+
+        // Update BugSnag user context (ID only for privacy)
+        if (isBugsnagEnabled()) {
+          if (session?.user) {
+            Bugsnag.setUser(session.user.id)
+          } else {
+            Bugsnag.setUser(undefined)
+          }
+        }
 
         // Clear profile when signing out
         if (event === 'SIGNED_OUT') {
