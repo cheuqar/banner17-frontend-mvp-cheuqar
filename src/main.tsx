@@ -1,3 +1,7 @@
+// Initialize BugSnag FIRST, before any other code
+import { initBugsnag } from './config/bugsnag';
+initBugsnag();
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
