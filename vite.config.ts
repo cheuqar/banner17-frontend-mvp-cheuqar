@@ -46,7 +46,7 @@ export default defineConfig({
   build: {
     sourcemap: true,
     rollupOptions: {
-      onwarn: (warning: { code?: string }, warn: (warning: { code?: string }) => void) => {
+      onwarn(warning, warn) {
         // Suppress certain warnings that might cause issues
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
         warn(warning);
