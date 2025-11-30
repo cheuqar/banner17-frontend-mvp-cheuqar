@@ -9,7 +9,9 @@ import Bugsnag from '@bugsnag/js';
 import BugsnagPluginReact from '@bugsnag/plugin-react';
 import React from 'react';
 
-let bugsnagErrorBoundary: React.ComponentType<{ children: React.ReactNode }> | null = null;
+// BugSnag error boundary component (we use our own ErrorBoundary that reports to BugSnag)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let bugsnagErrorBoundary: any = null;
 
 /**
  * Initialize BugSnag for error tracking
