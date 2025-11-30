@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import bugsnagSourcemaps from 'vite-plugin-bugsnag'
 
 // Get allowed hosts from environment variable or use defaults
 const getAllowedHosts = (): true | string[] => {
@@ -16,7 +17,15 @@ const getAllowedHosts = (): true | string[] => {
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // BugSnag source maps upload (only in production build with API key)
+    process.env.BUGSNAG_API_KEY && bugsnagSourcemaps({
+      apiKey: process.env.BUGSNAG_API_KEY,
+      appVersion: process.env.VITE_APP_VERSION || '1.0.0',
+      overwrite: true,
+    }),
+  ].filter(Boolean) as any[],
   server: {
     host: process.env.VITE_HOST || '0.0.0.0', // Allow external connections
     port: 3000,      // Match Docker port mapping
