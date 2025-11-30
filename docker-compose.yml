@@ -12,6 +12,11 @@ services:
       - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
       - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
       - CHOKIDAR_USEPOLLING=true
+      # BugSnag Error Monitoring
+      - VITE_BUGSNAG_API_KEY=${VITE_BUGSNAG_API_KEY}
+      - VITE_APP_VERSION=${VITE_APP_VERSION:-1.0.0}
+      - VITE_ENABLE_BUGSNAG=${VITE_ENABLE_BUGSNAG:-false}
+      - BUGSNAG_API_KEY=${BUGSNAG_API_KEY}
     volumes:
       - .:/app
       - /app/node_modules
