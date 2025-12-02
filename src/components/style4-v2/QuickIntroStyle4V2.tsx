@@ -4,12 +4,15 @@ import {
   Container,
   Typography
 } from '@mui/material';
+import { useAppSelector } from '../../store';
+import { selectThemeColors } from '../../store/slices/themeSlice';
 
 /**
  * QuickIntroStyle4V2 - Light background introductory section
  * Simple content section explaining the AI-powered approach
  */
 const QuickIntroStyle4V2: React.FC = () => {
+  const themeColors = useAppSelector(selectThemeColors);
   return (
     <Box
       sx={{
@@ -37,7 +40,14 @@ const QuickIntroStyle4V2: React.FC = () => {
               lineHeight: 1.25,
             }}
           >
-            Forget filters.{' '}
+            <Box
+              component="span"
+              sx={{
+                color: themeColors.linkButtonActive,
+              }}
+            >
+              Forget filters.
+            </Box>{' '}
             <Box
               component="span"
               sx={{

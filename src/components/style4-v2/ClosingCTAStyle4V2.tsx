@@ -7,6 +7,8 @@ import {
   Stack
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useAppSelector } from '../../store';
+import { selectThemeColors } from '../../store/slices/themeSlice';
 
 /**
  * ClosingCTAStyle4V2 - Final CTA section with background image
@@ -14,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
  */
 const ClosingCTAStyle4V2: React.FC = () => {
   const navigate = useNavigate();
+  const themeColors = useAppSelector(selectThemeColors);
 
   return (
     <Box
@@ -81,16 +84,16 @@ const ClosingCTAStyle4V2: React.FC = () => {
             }}
           >
             Ready to find your{' '}
-            <Box
-              component="span"
-              sx={{
-                fontFamily: '"Caveat", cursive',
-                fontStyle: 'italic',
-                color: '#e0e0e0',
+            <span
+              style={{
+                fontFamily: 'Caveat, cursive',
+                fontWeight: 600,
+                color: themeColors.linkButtonActive,
+                fontSize: 'inherit',
               }}
             >
               perfect home?
-            </Box>
+            </span>
           </Typography>
 
           {/* Description */}

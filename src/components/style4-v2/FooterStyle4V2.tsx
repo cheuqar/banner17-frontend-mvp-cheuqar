@@ -5,15 +5,9 @@ import {
   Typography,
   Grid,
   Link,
-  Divider,
-  IconButton
+  Divider
 } from '@mui/material';
-import {
-  Facebook,
-  Twitter,
-  LinkedIn,
-  Instagram
-} from '@mui/icons-material';
+import CompactThemeSwitcher from '../common/CompactThemeSwitcher';
 
 /**
  * FooterStyle4V2 - Shared footer component
@@ -49,24 +43,9 @@ const FooterStyle4V2: React.FC = () => {
         { label: 'Privacy Policy', href: '/privacy' },
         { label: 'Terms of Service', href: '/terms' }
       ]
-    },
-    {
-      title: 'Support',
-      links: [
-        { label: 'Help Center', href: '/help' },
-        { label: 'Contact Us', href: '/contact' },
-        { label: 'Developer API', href: '/api' },
-        { label: 'Status', href: '/status' }
-      ]
     }
   ];
 
-  const socialLinks = [
-    { icon: <Facebook />, href: 'https://facebook.com/banner17', label: 'Facebook' },
-    { icon: <Twitter />, href: 'https://twitter.com/banner17', label: 'Twitter' },
-    { icon: <LinkedIn />, href: 'https://linkedin.com/company/banner17', label: 'LinkedIn' },
-    { icon: <Instagram />, href: 'https://instagram.com/banner17', label: 'Instagram' }
-  ];
 
   return (
     <Box
@@ -158,46 +137,27 @@ const FooterStyle4V2: React.FC = () => {
           }}
         >
           {/* Copyright */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} sm={4} md={4}>
             <Typography
               variant="body2"
               sx={{
                 color: '#666666',
-                textAlign: { xs: 'center', md: 'left' },
+                textAlign: { xs: 'center', sm: 'left' },
               }}
             >
-              © {currentYear} Banner17. All rights reserved.
+              © {currentYear} Banner17 Limited. Hong Kong.
             </Typography>
           </Grid>
 
-          {/* Social Links */}
-          <Grid item xs={12} md={6}>
+          {/* Theme Switcher - Right */}
+          <Grid item xs={12} sm={8} md={8}>
             <Box
               sx={{
                 display: 'flex',
-                justifyContent: { xs: 'center', md: 'flex-end' },
-                gap: 1,
+                justifyContent: { xs: 'center', sm: 'flex-end' },
               }}
             >
-              {socialLinks.map((social) => (
-                <IconButton
-                  key={social.label}
-                  component="a"
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label={social.label}
-                  sx={{
-                    color: '#666666',
-                    '&:hover': {
-                      color: '#000000',
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                    },
-                  }}
-                >
-                  {social.icon}
-                </IconButton>
-              ))}
+              <CompactThemeSwitcher darkMode />
             </Box>
           </Grid>
         </Grid>
