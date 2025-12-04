@@ -3,6 +3,10 @@
  */
 
 import { API_BASE_URL } from './config';
+import type {
+  SchoolPropertyStatsResponse,
+  GetSchoolStatsOptions
+} from '../types/schoolStats';
 
 // Types for Schools API responses
 export interface SchoolCatchment {
@@ -369,7 +373,73 @@ export class SchoolsService {
     this.writeCacheEntry(cacheKey, transformedData);
     return transformedData;
   }
+
+  /**
+   * Get property statistics for a school's catchment or radius area
+   * Phase 2.47: School property statistics feature
+   */
+  async getSchoolPropertyStats(
+    options: GetSchoolStatsOptions,
+    authToken?: string
+  ): Promise<SchoolPropertyStatsResponse> {
+    const {
+      schoolId,
+      useCatchment = true,
+      radiusKm = 3.0,
+      priceMin,
+      priceMax,
+      bedroomsMin,
+      bedroomsMax,
+      propertyTypes,
+      listingType
+    } = options;
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    params.append('use_catchment', String(useCatchment));
+    params.append('radius_km', String(radiusKm));
+
+    if (priceMin !== undefined) params.append('price_min', String(priceMin));
+    if (priceMax !== undefined) params.append('price_max', String(priceMax));
+    if (bedroomsMin !== undefined) params.append('bedrooms_min', String(bedroomsMin));
+    if (bedroomsMax !== undefined) params.append('bedrooms_max', String(bedroomsMax));
+    if (propertyTypes && propertyTypes.length > 0) {
+      params.append('property_types', propertyTypes.join(','));
+    }
+    if (listingType) params.append('listing_type', listingType);
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(
+      `${this.baseUrl}/api/v1/smart-search/schools/${encodeURIComponent(schoolId)}/property-stats?${params.toString()}`,
+      {
+        method: 'GET',
+        headers,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+
+      if (response.status === 404) {
+        throw new Error('School not found or missing coordinates');
+      }
+
+      throw new Error(`Failed to fetch school property stats: ${response.status} ${errorText}`);
+    }
+
+    return response.json();
+  }
 }
 
 // Export default instance
 export const schoolsService = new SchoolsService();
+
+// Re-export types for convenience
+export type { SchoolPropertyStatsResponse, GetSchoolStatsOptions } from '../types/schoolStats';

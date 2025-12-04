@@ -1,10 +1,16 @@
 /**
  * Smart Search Service
  * Provides functions to search properties with advanced filters
+ *
+ * BugSnag Integration: All API calls include:
+ * - 30s timeout via AbortSignal
+ * - Breadcrumbs before/after each call
+ * - Error reporting with categories
  */
 
 import type { BaseProperty } from '../types/property-enhanced';
 import type { BBoxBounds } from '../store/slices/smartSearchSlice';
+import { reportError, leaveBreadcrumb } from '../utils/errorReporting';
 
 // Get API base URL with proper fallback handling
 const envApiUrl = import.meta.env.VITE_API_BASE_URL;
@@ -44,7 +50,9 @@ export interface SearchFilters {
   drawn_polygon?: any | null; // GeoJSON Polygon or MultiPolygon
   // NEW: School-based filtering (Phase 2.14)
   school_ids?: string[] | null; // Array of school IDs to filter by
-  use_school_radius?: boolean; // If true, use 3km radius; if false, prefer catchment polygons
+  use_school_radius?: boolean; // If true, use radius; if false, prefer catchment polygons
+  // Phase 2.46: Adjustable school search radius (in km)
+  school_radius_km?: number; // Radius in km for non-catchment schools (default: 3)
 }
 
 export interface SearchResponse {
@@ -100,26 +108,63 @@ export const searchProperties = async (filters: SearchFilters): Promise<SearchRe
 
   console.log('🔍 [SmartSearchService] Searching properties with filters:', cleanFilters);
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/smart-search/filters/search`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(cleanFilters),
-  });
+  // BugSnag: Breadcrumb before API call
+  leaveBreadcrumb('searchProperties initiated', {
+    filters: JSON.stringify(cleanFilters),
+    hasLocation: !!(cleanFilters.suburb || cleanFilters.state || cleanFilters.postcode),
+    hasSpatialFilter: !!(cleanFilters.bbox || cleanFilters.school_catchment_polygon || cleanFilters.drawn_polygon),
+  }, 'request');
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(errorData.detail || `Search failed: ${response.statusText}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/smart-search/filters/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(cleanFilters),
+      signal: AbortSignal.timeout(30000), // 30s timeout
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const error = new Error(errorData.detail || `Search failed: ${response.statusText}`);
+
+      // BugSnag: Report error with category
+      reportError(error, {
+        category: response.status === 504 ? 'API_TIMEOUT' : 'SEARCH_FAILED',
+        endpoint: '/api/v1/smart-search/filters/search',
+        status: response.status,
+        filters: cleanFilters,
+      });
+
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ [SmartSearchService] Search successful:', {
+      total_count: data.total_count,
+      returned: data.page_info?.returned || data.properties?.length,
+    });
+
+    // BugSnag: Breadcrumb on success
+    leaveBreadcrumb('searchProperties completed', {
+      total_count: data.total_count,
+      returned: data.page_info?.returned || data.properties?.length,
+    }, 'request');
+
+    return data;
+  } catch (error) {
+    // BugSnag: Handle timeout errors specifically
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      reportError(error, {
+        category: 'API_TIMEOUT',
+        endpoint: '/api/v1/smart-search/filters/search',
+        filters: cleanFilters,
+        timeout_ms: 30000,
+      });
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  console.log('✅ [SmartSearchService] Search successful:', {
-    total_count: data.total_count,
-    returned: data.page_info?.returned || data.properties?.length,
-  });
-
-  return data;
 };
 
 export interface School {
@@ -173,25 +218,62 @@ export const fetchSchools = async (filters: SchoolsFilters = {}): Promise<School
 
   console.log('🏫 [SmartSearchService] Fetching schools:', url);
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  // BugSnag: Breadcrumb before API call
+  leaveBreadcrumb('fetchSchools initiated', {
+    bbox: filters.bbox || null,
+    search_query: filters.search_query || null,
+    school_type: filters.school_type || 'all',
+  }, 'request');
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(errorData.detail || `Failed to fetch schools: ${response.statusText}`);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(30000), // 30s timeout
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const error = new Error(errorData.detail || `Failed to fetch schools: ${response.statusText}`);
+
+      // BugSnag: Report error with category
+      reportError(error, {
+        category: response.status === 504 ? 'API_TIMEOUT' : 'SCHOOL_FETCH_FAILED',
+        endpoint: '/api/v1/smart-search/schools',
+        status: response.status,
+        filters,
+      });
+
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ [SmartSearchService] Schools fetched:', {
+      total_count: data.total_count,
+      returned: data.schools?.length,
+    });
+
+    // BugSnag: Breadcrumb on success
+    leaveBreadcrumb('fetchSchools completed', {
+      total_count: data.total_count,
+      returned: data.schools?.length,
+    }, 'request');
+
+    return data;
+  } catch (error) {
+    // BugSnag: Handle timeout errors specifically
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      reportError(error, {
+        category: 'API_TIMEOUT',
+        endpoint: '/api/v1/smart-search/schools',
+        filters,
+        timeout_ms: 30000,
+      });
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  console.log('✅ [SmartSearchService] Schools fetched:', {
-    total_count: data.total_count,
-    returned: data.schools?.length,
-  });
-
-  return data;
 };
 
 export interface SuburbSuggestion {
@@ -221,25 +303,64 @@ export const getSuburbAutocomplete = async (
   const url = `${API_BASE_URL}/api/v1/smart-search/autocomplete/suburb?${params}`;
   console.log('🔍 [SmartSearchService] Fetching suburb autocomplete:', url);
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  // BugSnag: Breadcrumb before API call
+  leaveBreadcrumb('getSuburbAutocomplete initiated', {
+    query,
+    state: state || null,
+    limit,
+  }, 'request');
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(errorData.detail || `Autocomplete failed: ${response.statusText}`);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(30000), // 30s timeout
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const error = new Error(errorData.detail || `Autocomplete failed: ${response.statusText}`);
+
+      // BugSnag: Report error with category
+      reportError(error, {
+        category: response.status === 504 ? 'API_TIMEOUT' : 'AUTOCOMPLETE_FAILED',
+        endpoint: '/api/v1/smart-search/autocomplete/suburb',
+        status: response.status,
+        query,
+        state,
+      });
+
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ [SmartSearchService] Autocomplete successful:', {
+      total_count: data.total_count,
+      returned: data.suggestions?.length,
+    });
+
+    // BugSnag: Breadcrumb on success
+    leaveBreadcrumb('getSuburbAutocomplete completed', {
+      total_count: data.total_count,
+      returned: data.suggestions?.length,
+    }, 'request');
+
+    return data;
+  } catch (error) {
+    // BugSnag: Handle timeout errors specifically
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      reportError(error, {
+        category: 'API_TIMEOUT',
+        endpoint: '/api/v1/smart-search/autocomplete/suburb',
+        query,
+        state,
+        timeout_ms: 30000,
+      });
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  console.log('✅ [SmartSearchService] Autocomplete successful:', {
-    total_count: data.total_count,
-    returned: data.suggestions?.length,
-  });
-
-  return data;
 };
 
 // Phase 2.32: Amenities Service
@@ -318,23 +439,60 @@ export const fetchAmenities = async (filters: AmenitiesFilters = {}): Promise<Am
 
   console.log('🏥 [SmartSearchService] Fetching amenities:', url);
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
+  // BugSnag: Breadcrumb before API call
+  leaveBreadcrumb('fetchAmenities initiated', {
+    categories: filters.categories?.join(',') || 'all',
+    hasBbox: !!filters.bbox,
+    hasRadiusSearch: !!(filters.radius_km && filters.center_lat && filters.center_lng),
+  }, 'request');
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new Error(errorData.detail || `Failed to fetch amenities: ${response.statusText}`);
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      signal: AbortSignal.timeout(30000), // 30s timeout
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const error = new Error(errorData.detail || `Failed to fetch amenities: ${response.statusText}`);
+
+      // BugSnag: Report error with category
+      reportError(error, {
+        category: response.status === 504 ? 'API_TIMEOUT' : 'AMENITIES_FAILED',
+        endpoint: '/api/v1/smart-search/amenities/within-bounds',
+        status: response.status,
+        filters,
+      });
+
+      throw error;
+    }
+
+    const data = await response.json();
+    console.log('✅ [SmartSearchService] Amenities fetched:', {
+      total_count: data.total_count,
+      returned: data.amenities?.length,
+    });
+
+    // BugSnag: Breadcrumb on success
+    leaveBreadcrumb('fetchAmenities completed', {
+      total_count: data.total_count,
+      returned: data.amenities?.length,
+    }, 'request');
+
+    return data;
+  } catch (error) {
+    // BugSnag: Handle timeout errors specifically
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      reportError(error, {
+        category: 'API_TIMEOUT',
+        endpoint: '/api/v1/smart-search/amenities/within-bounds',
+        filters,
+        timeout_ms: 30000,
+      });
+    }
+    throw error;
   }
-
-  const data = await response.json();
-  console.log('✅ [SmartSearchService] Amenities fetched:', {
-    total_count: data.total_count,
-    returned: data.amenities?.length,
-  });
-
-  return data;
 };

@@ -5,6 +5,7 @@ import type { SearchFilters } from '../../services/smartSearchService';
 import type { BaseProperty } from '../../types/property-enhanced';
 import { computeCatchmentUnion } from '../../utils/catchmentUnion';
 import type * as GeoJSON from 'geojson';
+import { reportError, leaveBreadcrumb } from '../../utils/errorReporting';
 
 // Use GeoJSON.Feature instead of @turf/helpers Feature
 type Feature<G extends GeoJSON.Geometry = GeoJSON.Geometry, P = GeoJSON.GeoJsonProperties> = GeoJSON.Feature<G, P>;
@@ -104,6 +105,8 @@ export interface SchoolsState {
   showCatchmentRadius: boolean;   // Controls polygon visibility
   // Phase 2.12.4: Selective school filter
   selectiveSchoolFilter: boolean; // Filter for selective/selective entrance schools
+  // Phase 2.46: Adjustable search radius for non-catchment schools (1-8km)
+  searchRadius: number;
 }
 
 // Phase 2.32: Amenity interface and state
@@ -276,6 +279,8 @@ const initialState: SmartSearchState = {
     showCatchmentRadius: false,
     // Phase 2.12.4: Selective school filter default
     selectiveSchoolFilter: false,
+    // Phase 2.46: Adjustable search radius for non-catchment schools (in km)
+    searchRadius: 3,
   },
   // NEW: Amenities defaults (Phase 2.32)
   amenities: {
@@ -324,6 +329,12 @@ export const performSearch = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     const state = getState() as any; // Use any to access multiple slices
 
+    // BugSnag: Breadcrumb at start
+    leaveBreadcrumb('performSearch started', {
+      hasActiveFilters: Object.keys(state.smartSearch.filters).length > 0,
+      activeSpatialFilter: state.smartSearch.activeSpatialFilter,
+    }, 'state');
+
     const filters = state.smartSearch.filters;
     const sortBy = state.smartSearch.sortBy;
     const { mapBounds, searchBounds, userDefinedMapArea, schools, activeSpatialFilter, drawnPolygonUnion } = state.smartSearch;
@@ -360,9 +371,13 @@ export const performSearch = createAsyncThunk(
       const schoolsWithBoundaries = selectedSchools.filter((s: any) => s.has_catchment_boundary);
       const hasAnyCatchmentBoundaries = schoolsWithBoundaries.length > 0;
 
-      // If NO schools have catchment boundaries, use radius fallback (2-3km circles)
+      // If NO schools have catchment boundaries, use radius fallback (user-adjustable km)
       // If ANY schools have boundaries, use polygon mode (backend will compute union)
       searchFilters.use_school_radius = !hasAnyCatchmentBoundaries;
+
+      // Phase 2.46: Pass the user-adjustable radius for non-catchment schools
+      const schoolSearchRadius = schools.searchRadius || 3; // Default 3km
+      searchFilters.school_radius_km = schoolSearchRadius;
 
       console.log('[SmartSearch] Using school ID-based filtering:', {
         schoolCount: selectedSchools.length,
@@ -370,7 +385,8 @@ export const performSearch = createAsyncThunk(
         withBoundaries: schoolsWithBoundaries.length,
         withoutBoundaries: selectedSchools.length - schoolsWithBoundaries.length,
         useRadius: searchFilters.use_school_radius,
-        mode: searchFilters.use_school_radius ? 'RADIUS_FALLBACK (2-3km circles)' : 'POLYGON_MODE'
+        schoolRadiusKm: schoolSearchRadius,
+        mode: searchFilters.use_school_radius ? `RADIUS_FALLBACK (${schoolSearchRadius}km circles)` : 'POLYGON_MODE'
       });
     }
 
@@ -388,29 +404,41 @@ export const performSearch = createAsyncThunk(
         polygonType: drawnPolygonUnion.geometry.type
       });
     } else if (activeSpatialFilter === 'schoolCatchment') {
-      // Phase 2.17 FIX: School catchment can be EITHER polygon mode OR radius mode
-      searchFilters.bbox = null;
-
-      // Phase 2.24 FIX: Use use_school_radius flag instead of stale schools.catchmentUnion
-      // The flag is already correctly set at line 311 based on CURRENT selected schools
-      // using s.has_catchment_boundary, not on stale global state
-      if (searchFilters.use_school_radius === false && schools.catchmentUnion) {
-        // Polygon mode: Schools have official catchment boundaries AND use_school_radius=false
-        // Extract geometry from Feature object for API
-        searchFilters.school_catchment_polygon = schools.catchmentUnion.geometry;
-        console.log('[SmartSearch] Using school catchment POLYGON spatial filter:', {
-          hasCatchmentPolygon: !!searchFilters.school_catchment_polygon,
-          polygonType: schools.catchmentUnion.geometry.type
-        });
+      // Phase 2.46 FIX: Defensive check - if no schools selected, fall back to bbox
+      if (!searchFilters.school_ids || searchFilters.school_ids.length === 0) {
+        console.warn('[SmartSearch] schoolCatchment filter active but no schools selected - falling back to bbox');
+        const boundsToUse = searchBounds || mapBounds;
+        if (boundsToUse) {
+          searchFilters.bbox = boundsToUse;
+          searchFilters.school_catchment_polygon = null;
+          console.log('[SmartSearch] Falling back to bbox:', boundsToUse);
+        }
       } else {
-        // Phase 2.17: Radius mode - Schools lack official boundaries, use radius fallback
-        // Backend will use school_ids + use_school_radius=true to filter by 2-3km circles
-        searchFilters.school_catchment_polygon = null;
-        console.log('[SmartSearch] Using school catchment RADIUS spatial filter:', {
-          schoolIds: searchFilters.school_ids,
-          useRadius: searchFilters.use_school_radius,
-          note: 'Backend will filter by 2-3km radius circles around schools'
-        });
+        // Phase 2.17 FIX: School catchment can be EITHER polygon mode OR radius mode
+        searchFilters.bbox = null;
+
+        // Phase 2.24 FIX: Use use_school_radius flag instead of stale schools.catchmentUnion
+        // The flag is already correctly set at line 311 based on CURRENT selected schools
+        // using s.has_catchment_boundary, not on stale global state
+        if (searchFilters.use_school_radius === false && schools.catchmentUnion) {
+          // Polygon mode: Schools have official catchment boundaries AND use_school_radius=false
+          // Extract geometry from Feature object for API
+          searchFilters.school_catchment_polygon = schools.catchmentUnion.geometry;
+          console.log('[SmartSearch] Using school catchment POLYGON spatial filter:', {
+            hasCatchmentPolygon: !!searchFilters.school_catchment_polygon,
+            polygonType: schools.catchmentUnion.geometry.type
+          });
+        } else {
+          // Phase 2.17: Radius mode - Schools lack official boundaries, use radius fallback
+          // Backend will use school_ids + use_school_radius=true + school_radius_km to filter
+          searchFilters.school_catchment_polygon = null;
+          console.log('[SmartSearch] Using school catchment RADIUS spatial filter:', {
+            schoolIds: searchFilters.school_ids,
+            useRadius: searchFilters.use_school_radius,
+            radiusKm: searchFilters.school_radius_km,
+            note: `Backend will filter by ${searchFilters.school_radius_km}km radius circles around schools`
+          });
+        }
       }
     } else {
       // Phase 2.20 DEFAULT BEHAVIOR: Always include bbox (current map viewport) unless explicitly removed
@@ -437,7 +465,15 @@ export const performSearch = createAsyncThunk(
     }
 
     try {
-      return await searchProperties(searchFilters);
+      const result = await searchProperties(searchFilters);
+
+      // BugSnag: Breadcrumb on success
+      leaveBreadcrumb('performSearch completed', {
+        total_count: result.total_count,
+        returned: result.properties?.length || 0,
+      }, 'state');
+
+      return result;
     } catch (error: any) {
       console.error('[performSearch] Error caught:', error);
 
@@ -466,6 +502,18 @@ export const performSearch = createAsyncThunk(
         errorMessage = 'Network error. Please check your connection and try again.';
       }
 
+      // BugSnag: Report error with context
+      reportError(error instanceof Error ? error : new Error(errorMessage), {
+        category: errorType === 'timeout' ? 'API_TIMEOUT' : 'SEARCH_FAILED',
+        action: 'performSearch',
+        errorType,
+        filters: searchFilters,
+        state: {
+          activeSpatialFilter: state.smartSearch.activeSpatialFilter,
+          hasSelectedSchools: (state.schoolPanel?.selectedSchools?.length || 0) > 0,
+        },
+      });
+
       return rejectWithValue({ type: errorType, message: errorMessage });
     }
   },
@@ -487,6 +535,12 @@ export const searchByBounds = createAsyncThunk(
   'smartSearch/searchByBounds',
   async (bounds: BBoxBounds, { getState, dispatch, rejectWithValue }) => {
     const state = getState() as any; // Use any to access multiple slices
+
+    // BugSnag: Breadcrumb at start
+    leaveBreadcrumb('searchByBounds started', {
+      bounds: JSON.stringify(bounds),
+      activeSpatialFilter: state.smartSearch.activeSpatialFilter,
+    }, 'state');
 
     const filters = state.smartSearch.filters;
     const sortBy = state.smartSearch.sortBy;
@@ -541,12 +595,17 @@ export const searchByBounds = createAsyncThunk(
       const schoolsWithBoundaries = selectedSchools.filter((s: any) => s.has_catchment_boundary);
       searchFilters.use_school_radius = schoolsWithBoundaries.length === 0;
 
+      // Phase 2.46: Pass the user-adjustable radius for non-catchment schools
+      const schoolSearchRadius = schools.searchRadius || 3;
+      searchFilters.school_radius_km = schoolSearchRadius;
+
       console.log('[SearchByBounds] Preserving school ID-based filtering:', {
         schoolCount: selectedSchools.length,
         schoolIds: searchFilters.school_ids,
         withBoundaries: schoolsWithBoundaries.length,
         useRadius: searchFilters.use_school_radius,
-        mode: searchFilters.use_school_radius ? 'RADIUS_FALLBACK' : 'POLYGON_MODE'
+        schoolRadiusKm: schoolSearchRadius,
+        mode: searchFilters.use_school_radius ? `RADIUS_FALLBACK (${schoolSearchRadius}km)` : 'POLYGON_MODE'
       });
     }
 
@@ -554,10 +613,26 @@ export const searchByBounds = createAsyncThunk(
       const result = await searchProperties(searchFilters);
       // NEW: Phase 2.8 - Clear lock flag AFTER successful API call
       dispatch(setAutoSearchInitiated(false));
+
+      // BugSnag: Breadcrumb on success
+      leaveBreadcrumb('searchByBounds completed', {
+        total_count: result.total_count,
+        returned: result.properties?.length || 0,
+      }, 'state');
+
       return result;
     } catch (error: any) {
       // NEW: Phase 2.8 - Clear lock flag AFTER failed API call
       dispatch(setAutoSearchInitiated(false));
+
+      // BugSnag: Report error with context
+      reportError(error instanceof Error ? error : new Error('searchByBounds failed'), {
+        category: 'SEARCH_FAILED',
+        action: 'searchByBounds',
+        bounds,
+        filters: searchFilters,
+      });
+
       // Handle 400 error (validation error from backend)
       if (error.response?.status === 400) {
         return rejectWithValue(error.response.data.detail || 'Failed to search this area.');
@@ -584,6 +659,13 @@ export const loadMoreProperties = createAsyncThunk(
   'smartSearch/loadMoreProperties',
   async (_, { getState, rejectWithValue }) => {
     const state = getState() as any; // Use any to access multiple slices
+
+    // BugSnag: Breadcrumb at start
+    leaveBreadcrumb('loadMoreProperties started', {
+      paginationOffset: state.smartSearch.paginationOffset,
+      displayedCount: state.smartSearch.displayedCount,
+      totalCount: state.smartSearch.totalCount,
+    }, 'state');
 
     const { filters, sortBy, paginationOffset, displayedCount, totalCount, mapBounds, userDefinedMapArea, schools, activeSpatialFilter, drawnPolygonUnion, searchPending } = state.smartSearch;
 
@@ -639,12 +721,17 @@ export const loadMoreProperties = createAsyncThunk(
       const schoolsWithBoundaries = selectedSchools.filter((s: any) => s.has_catchment_boundary);
       searchFilters.use_school_radius = schoolsWithBoundaries.length === 0;
 
+      // Phase 2.46: Pass the user-adjustable radius for non-catchment schools
+      const schoolSearchRadius = schools.searchRadius || 3;
+      searchFilters.school_radius_km = schoolSearchRadius;
+
       console.log('[LoadMore] Preserving school ID-based filtering:', {
         schoolCount: selectedSchools.length,
         schoolIds: searchFilters.school_ids,
         withBoundaries: schoolsWithBoundaries.length,
         useRadius: searchFilters.use_school_radius,
-        mode: searchFilters.use_school_radius ? 'RADIUS_FALLBACK' : 'POLYGON_MODE'
+        schoolRadiusKm: schoolSearchRadius,
+        mode: searchFilters.use_school_radius ? `RADIUS_FALLBACK (${schoolSearchRadius}km)` : 'POLYGON_MODE'
       });
     }
 
@@ -661,26 +748,37 @@ export const loadMoreProperties = createAsyncThunk(
         polygonType: drawnPolygonUnion.geometry.type
       });
     } else if (activeSpatialFilter === 'schoolCatchment') {
-      // Phase 2.17 FIX: School catchment can be EITHER polygon mode OR radius mode
-      searchFilters.bbox = null;
-
-      // Phase 2.24 FIX: Use use_school_radius flag instead of stale schools.catchmentUnion
-      // The flag is already correctly set based on CURRENT selected schools
-      if (searchFilters.use_school_radius === false && schools.catchmentUnion) {
-        // Polygon mode: Schools have official catchment boundaries AND use_school_radius=false
-        searchFilters.school_catchment_polygon = schools.catchmentUnion.geometry;
-        console.log('[LoadMore] Using school catchment POLYGON spatial filter:', {
-          hasCatchmentPolygon: !!searchFilters.school_catchment_polygon,
-          polygonType: schools.catchmentUnion.geometry.type
-        });
+      // Phase 2.46 FIX: Defensive check - if no schools selected, fall back to bbox
+      if (!searchFilters.school_ids || searchFilters.school_ids.length === 0) {
+        console.warn('[LoadMore] schoolCatchment filter active but no schools selected - falling back to bbox');
+        if (mapBounds) {
+          searchFilters.bbox = mapBounds;
+          searchFilters.school_catchment_polygon = null;
+          console.log('[LoadMore] Falling back to bbox:', mapBounds);
+        }
       } else {
-        // Phase 2.17: Radius mode - Schools lack official boundaries, use radius fallback
-        searchFilters.school_catchment_polygon = null;
-        console.log('[LoadMore] Using school catchment RADIUS spatial filter:', {
-          schoolIds: searchFilters.school_ids,
-          useRadius: searchFilters.use_school_radius,
-          note: 'Backend will filter by 2-3km radius circles'
-        });
+        // Phase 2.17 FIX: School catchment can be EITHER polygon mode OR radius mode
+        searchFilters.bbox = null;
+
+        // Phase 2.24 FIX: Use use_school_radius flag instead of stale schools.catchmentUnion
+        // The flag is already correctly set based on CURRENT selected schools
+        if (searchFilters.use_school_radius === false && schools.catchmentUnion) {
+          // Polygon mode: Schools have official catchment boundaries AND use_school_radius=false
+          searchFilters.school_catchment_polygon = schools.catchmentUnion.geometry;
+          console.log('[LoadMore] Using school catchment POLYGON spatial filter:', {
+            hasCatchmentPolygon: !!searchFilters.school_catchment_polygon,
+            polygonType: schools.catchmentUnion.geometry.type
+          });
+        } else {
+          // Phase 2.17: Radius mode - Schools lack official boundaries, use radius fallback
+          searchFilters.school_catchment_polygon = null;
+          console.log('[LoadMore] Using school catchment RADIUS spatial filter:', {
+            schoolIds: searchFilters.school_ids,
+            useRadius: searchFilters.use_school_radius,
+            radiusKm: searchFilters.school_radius_km,
+            note: `Backend will filter by ${searchFilters.school_radius_km}km radius circles`
+          });
+        }
       }
     } else if (mapBounds) {
       // BUG FIX: Always include bbox when map is visible (removed activeSpatialFilter check)
@@ -696,8 +794,25 @@ export const loadMoreProperties = createAsyncThunk(
     }
 
     try {
-      return await searchProperties(searchFilters);
+      const result = await searchProperties(searchFilters);
+
+      // BugSnag: Breadcrumb on success
+      leaveBreadcrumb('loadMoreProperties completed', {
+        loaded: result.properties?.length || 0,
+        newOffset: paginationOffset + (result.properties?.length || 0),
+      }, 'state');
+
+      return result;
     } catch (error: any) {
+      // BugSnag: Report error with context
+      reportError(error instanceof Error ? error : new Error('loadMoreProperties failed'), {
+        category: 'PAGINATION_FAILED',
+        action: 'loadMoreProperties',
+        paginationOffset,
+        displayedCount,
+        totalCount,
+      });
+
       // Handle 400 error (validation error from backend)
       if (error.response?.status === 400) {
         return rejectWithValue(error.response.data.detail || 'Failed to load more properties.');
@@ -727,6 +842,13 @@ export const fetchSchools = createAsyncThunk(
     const { searchQuery, schoolTypeFilter } = state.smartSearch.schools;
     const { mapBounds } = state.smartSearch;
 
+    // BugSnag: Breadcrumb at start
+    leaveBreadcrumb('fetchSchools thunk started', {
+      searchQuery: overrideQuery || searchQuery || null,
+      schoolTypeFilter,
+      hasMapBounds: !!mapBounds,
+    }, 'state');
+
     // Build filters
     const filters: any = {
       limit: 100,
@@ -750,8 +872,23 @@ export const fetchSchools = createAsyncThunk(
     }
 
     try {
-      return await fetchSchoolsService(filters);
+      const result = await fetchSchoolsService(filters);
+
+      // BugSnag: Breadcrumb on success
+      leaveBreadcrumb('fetchSchools thunk completed', {
+        total_count: result.total_count,
+        returned: result.schools?.length || 0,
+      }, 'state');
+
+      return result;
     } catch (error: any) {
+      // BugSnag: Report error
+      reportError(error instanceof Error ? error : new Error('fetchSchools thunk failed'), {
+        category: 'SCHOOL_FETCH_FAILED',
+        action: 'fetchSchools',
+        filters,
+      });
+
       return rejectWithValue(error.message || 'Failed to fetch schools');
     }
   }
@@ -765,6 +902,13 @@ export const fetchAmenities = createAsyncThunk(
     const { searchQuery, categoryFilters } = state.smartSearch.amenities;
     // Phase 2.32.6: Removed radiusKm - aligned with school markers bbox-only pattern
     const { mapBounds } = state.smartSearch;
+
+    // BugSnag: Breadcrumb at start
+    leaveBreadcrumb('fetchAmenities thunk started', {
+      searchQuery: searchQuery || null,
+      categoryFilters: categoryFilters?.join(',') || 'all',
+      hasMapBounds: !!mapBounds,
+    }, 'state');
 
     // Build filters
     const filters: any = {
@@ -791,8 +935,23 @@ export const fetchAmenities = createAsyncThunk(
     // Phase 2.32.6: Removed radius/center parameter logic - bbox-only pattern like schools
 
     try {
-      return await fetchAmenitiesService(filters);
+      const result = await fetchAmenitiesService(filters);
+
+      // BugSnag: Breadcrumb on success
+      leaveBreadcrumb('fetchAmenities thunk completed', {
+        total_count: result.total_count,
+        returned: result.amenities?.length || 0,
+      }, 'state');
+
+      return result;
     } catch (error: any) {
+      // BugSnag: Report error
+      reportError(error instanceof Error ? error : new Error('fetchAmenities thunk failed'), {
+        category: 'AMENITIES_FAILED',
+        action: 'fetchAmenities',
+        filters,
+      });
+
       return rejectWithValue(error.message || 'Failed to fetch amenities');
     }
   }
@@ -804,6 +963,11 @@ export const computeSchoolCatchmentUnion = createAsyncThunk(
   'smartSearch/computeSchoolCatchmentUnion',
   async (_, { getState, rejectWithValue }) => {
     const state = getState() as any; // Use any to access multiple slices
+
+    // BugSnag: Breadcrumb at start (HIGH RISK spatial operation)
+    leaveBreadcrumb('computeSchoolCatchmentUnion started', {
+      selectedSchoolsCount: state.schoolPanel?.selectedSchools?.length || 0,
+    }, 'state');
 
     console.log('=== CATCHMENT UNION DEBUG START ===');
 
@@ -864,6 +1028,12 @@ export const computeSchoolCatchmentUnion = createAsyncThunk(
 
       if (!unionResult) {
         console.log('[CatchmentUnion] ERROR: computeCatchmentUnion returned null');
+        // BugSnag: Report null result as error
+        reportError(new Error('computeCatchmentUnion returned null'), {
+          category: 'SPATIAL_FILTER_ERROR',
+          action: 'computeSchoolCatchmentUnion',
+          schoolCount: selectedWithCatchments.length,
+        });
         return rejectWithValue('Failed to compute catchment union');
       }
 
@@ -873,6 +1043,12 @@ export const computeSchoolCatchmentUnion = createAsyncThunk(
       });
       console.log('=== CATCHMENT UNION DEBUG END ===');
 
+      // BugSnag: Breadcrumb on success
+      leaveBreadcrumb('computeSchoolCatchmentUnion completed', {
+        geometryType: unionResult.geometry.type,
+        coordsLength: unionResult.geometry.coordinates?.length || 0,
+      }, 'state');
+
       return unionResult;
     } catch (error: any) {
       console.error('[CatchmentUnion] ERROR during union computation:', {
@@ -881,6 +1057,15 @@ export const computeSchoolCatchmentUnion = createAsyncThunk(
         name: error.name
       });
       console.log('=== CATCHMENT UNION DEBUG END ===');
+
+      // BugSnag: Report spatial computation error (HIGH RISK)
+      reportError(error instanceof Error ? error : new Error('computeSchoolCatchmentUnion failed'), {
+        category: 'SPATIAL_FILTER_ERROR',
+        action: 'computeSchoolCatchmentUnion',
+        schoolCount: selectedWithCatchments.length,
+        errorMessage: error.message,
+      });
+
       return rejectWithValue(error.message || 'Union computation failed');
     }
   }
@@ -892,6 +1077,11 @@ export const computeDrawnPolygonUnion = createAsyncThunk(
   async (_, { getState, rejectWithValue }) => {
     const state = getState() as { smartSearch: SmartSearchState };
     const { drawnPolygons } = state.smartSearch;
+
+    // BugSnag: Breadcrumb at start (HIGH RISK spatial operation)
+    leaveBreadcrumb('computeDrawnPolygonUnion started', {
+      polygonCount: drawnPolygons.length,
+    }, 'state');
 
     console.log('[DrawnPolygonUnion] Computing union for', drawnPolygons.length, 'polygons');
 
@@ -909,6 +1099,12 @@ export const computeDrawnPolygonUnion = createAsyncThunk(
 
       if (!unionResult) {
         console.log('[DrawnPolygonUnion] ERROR: computeCatchmentUnion returned null');
+        // BugSnag: Report null result as error
+        reportError(new Error('computeCatchmentUnion returned null for drawn polygons'), {
+          category: 'SPATIAL_FILTER_ERROR',
+          action: 'computeDrawnPolygonUnion',
+          polygonCount: polygonGeometries.length,
+        });
         return rejectWithValue('Failed to compute polygon union');
       }
 
@@ -917,6 +1113,12 @@ export const computeDrawnPolygonUnion = createAsyncThunk(
         coordsLength: unionResult.geometry.coordinates?.length
       });
 
+      // BugSnag: Breadcrumb on success
+      leaveBreadcrumb('computeDrawnPolygonUnion completed', {
+        geometryType: unionResult.geometry.type,
+        coordsLength: unionResult.geometry.coordinates?.length || 0,
+      }, 'state');
+
       return unionResult;
     } catch (error: any) {
       console.error('[DrawnPolygonUnion] ERROR during union computation:', {
@@ -924,6 +1126,15 @@ export const computeDrawnPolygonUnion = createAsyncThunk(
         stack: error.stack,
         name: error.name
       });
+
+      // BugSnag: Report spatial computation error (HIGH RISK)
+      reportError(error instanceof Error ? error : new Error('computeDrawnPolygonUnion failed'), {
+        category: 'SPATIAL_FILTER_ERROR',
+        action: 'computeDrawnPolygonUnion',
+        polygonCount: drawnPolygons.length,
+        errorMessage: error.message,
+      });
+
       return rejectWithValue(error.message || 'Union computation failed');
     }
   }
@@ -1343,6 +1554,11 @@ const smartSearchSlice = createSlice({
       state.schools.showCatchmentRadius = action.payload;
       console.log('[SmartSearch] Catchment radius:', action.payload);
     },
+    // NEW: Phase 2.46 - School Search Radius (for non-catchment schools)
+    setSchoolSearchRadius: (state, action: PayloadAction<number>) => {
+      state.schools.searchRadius = action.payload;
+      console.log('[SmartSearch] School search radius:', action.payload, 'km');
+    },
     // NEW: Phase 2.12.4 - Selective School Filter
     setSelectiveSchoolFilter: (state, action: PayloadAction<boolean>) => {
       state.schools.selectiveSchoolFilter = action.payload;
@@ -1637,6 +1853,15 @@ const smartSearchSlice = createSlice({
 
         console.log(`[LoadMore] Received: ${newProperties.length}, Unique: ${uniqueNewProperties.length}, Duplicates: ${newProperties.length - uniqueNewProperties.length}`);
 
+        // BUG FIX: If API returns 0 properties OR all are duplicates, stop loading
+        // This prevents infinite loop when spatial filters limit results beyond totalCount
+        if (newProperties.length === 0 || uniqueNewProperties.length === 0) {
+          console.log('[LoadMore] No new properties - setting totalCount to stop further loading');
+          state.totalCount = state.properties.length;
+          // Don't append anything, just exit
+          return;
+        }
+
         // APPEND only unique new properties (don't replace)
         state.properties = [...state.properties, ...uniqueNewProperties];
 
@@ -1770,6 +1995,8 @@ export const {
   // NEW: Phase 2.12.1 - School Panel Toggle Controls
   setShowSchoolsOnMap,
   setShowCatchmentRadius,
+  // NEW: Phase 2.46 - School Search Radius
+  setSchoolSearchRadius,
   // NEW: Phase 2.12.4 - Selective School Filter
   setSelectiveSchoolFilter,
   // NEW: Error handling actions (Phase 2.5.10)
@@ -1856,6 +2083,10 @@ export const selectShowSchoolsOnMap = (state: { smartSearch: SmartSearchState })
 export const selectShowCatchmentRadius = (state: { smartSearch: SmartSearchState }) =>
   state.smartSearch.schools.showCatchmentRadius;
 
+// Phase 2.46: Selector for school search radius (non-catchment schools)
+export const selectSchoolSearchRadius = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.schools.searchRadius;
+
 // Phase 2.12.4: Selector for selective school filter
 export const selectSelectiveSchoolFilter = (state: { smartSearch: SmartSearchState }) =>
   state.smartSearch.schools.selectiveSchoolFilter;
@@ -1878,5 +2109,12 @@ export const selectSearchPending = (state: { smartSearch: SmartSearchState }) =>
 // Phase 2.38: Selector for suburb boundaries visibility
 export const selectShowSuburbBoundaries = (state: { smartSearch: SmartSearchState }) =>
   state.smartSearch.showSuburbBoundaries;
+
+// Phase 2.45: Selectors for amenities layer visibility (used by MapLayerLegend)
+export const selectShowAmenitiesOnMap = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.amenities.showAmenitiesOnMap;
+
+export const selectSelectedAmenityCategories = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.amenities.categoryFilters;
 
 export default smartSearchSlice.reducer;

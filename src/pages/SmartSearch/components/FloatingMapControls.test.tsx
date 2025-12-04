@@ -84,6 +84,7 @@ describe('FloatingMapControls', () => {
       showSchoolsOnMap: true,
       showCatchmentRadius: false,
       selectiveSchoolFilter: false,
+      searchRadius: 3,
     },
     activeSpatialFilter: 'none' as const,
     showSpatialConflictDialog: false,

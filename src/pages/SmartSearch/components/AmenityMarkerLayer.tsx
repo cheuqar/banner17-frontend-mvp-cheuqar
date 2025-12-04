@@ -19,6 +19,7 @@ import { useAppSelector, useAppDispatch } from '../../../store';
 import { toggleAmenitySelection } from '../../../store/slices/smartSearchSlice';
 import { AmenityMarkerPopup } from './AmenityMarkerPopup';
 import L from 'leaflet';
+import { createTeardropClusterIcon } from './PriceMarkerIcon';
 import './AmenityMarkerLayer.css';
 
 // Maximum number of markers to render for performance
@@ -40,40 +41,21 @@ const getCategoryColor = (category: string): string => {
   return '#666'; // Default gray
 };
 
+// Amenity cluster default color (neutral gray-blue for mixed categories)
+// Individual markers retain their category colors when zoomed in
+const AMENITY_CLUSTER_COLOR = '#5C6BC0'; // Indigo - neutral POI color
+
 /**
- * Create amenity cluster icon
+ * Create amenity cluster icon - Teardrop style
+ * Phase 2.45: Unified teardrop style matching property markers
+ * Uses neutral indigo color for clusters (since they typically contain mixed categories)
+ * Individual markers retain category-specific colors when zoomed in
  * @param cluster - Leaflet MarkerCluster instance
  * @returns Leaflet DivIcon
  */
 const createAmenityClusterIcon = (cluster: any): L.DivIcon => {
   const count = cluster.getChildCount();
-
-  const html = `
-    <div class="amenity-cluster-marker">
-      <div class="amenity-cluster-label">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="#0b2d2c"
-          xmlns="http://www.w3.org/2000/svg"
-          style="flex-shrink: 0;"
-        >
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-        </svg>
-        <span class="amenity-cluster-count">${count} amenities</span>
-      </div>
-      <div class="amenity-cluster-pointer"></div>
-    </div>
-  `;
-
-  return L.divIcon({
-    html,
-    className: 'custom-amenity-cluster-marker',
-    iconSize: [120, 50],
-    iconAnchor: [60, 50],
-    popupAnchor: [0, -50]
-  });
+  return createTeardropClusterIcon(count, AMENITY_CLUSTER_COLOR, 'amenity-cluster');
 };
 
 /**
@@ -144,15 +126,23 @@ export const AmenityMarkerLayer: React.FC = () => {
   } = useAppSelector(state => state.smartSearch.amenities);
 
   /**
-   * Handle marker click - select/deselect amenity
+   * Handle marker click - select/deselect amenity and open popup
+   * Phase 2.46 FIX: Ensure popup opens after selection
    */
-  const handleMarkerClick = useCallback((amenityId: string, isSelected: boolean) => {
+  const handleMarkerClick = useCallback((amenityId: string, isSelected: boolean, markerRef: L.Marker | null) => {
     console.log('[AmenityMarkerLayer] Marker clicked:', {
       amenityId,
       isSelected,
     });
 
     dispatch(toggleAmenitySelection(amenityId));
+
+    // Phase 2.46 FIX: Open popup after selection state change
+    if (markerRef) {
+      setTimeout(() => {
+        markerRef.openPopup();
+      }, 50);
+    }
   }, [dispatch]);
 
   // Memoize markers to render (max 100, valid coordinates only)
@@ -206,7 +196,9 @@ export const AmenityMarkerLayer: React.FC = () => {
             eventHandlers={{
               click: (e) => {
                 e.originalEvent.stopPropagation(); // Prevent map click
-                handleMarkerClick(amenity.id, isSelected);
+                // Phase 2.46 FIX: Pass marker ref to open popup after selection
+                const marker = e.target as L.Marker;
+                handleMarkerClick(amenity.id, isSelected, marker);
               },
             }}
           >

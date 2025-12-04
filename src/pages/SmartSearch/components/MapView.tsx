@@ -39,8 +39,8 @@ import { useBboxSchools } from '../../../hooks/useBboxSchools';
 import { selectMapBounds } from '../../../store/slices/smartSearch/mapBoundsSlice';
 // NEW: Phase 2.10.7.6 - Catchment visualization layer
 import CatchmentLayer from './CatchmentLayer';
-// NEW: Phase 2.10.7.7 - School legend component
-import SchoolLegend from './SchoolLegend';
+// NEW: Phase 2.45 - Map layer legend component (replaces SchoolLegend)
+import MapLayerLegend from './MapLayerLegend';
 // NEW: Phase 2.17.5 - Floating map controls wrapper
 import FloatingMapControls from './FloatingMapControls';
 // NEW: Phase 2.22 - Search progress indicator
@@ -1292,8 +1292,8 @@ const MapView: React.FC<MapViewProps> = ({
                 </Box>
             )}
 
-            {/* NEW: School Legend Component (Phase 2.10.7.7) */}
-            <SchoolLegend />
+            {/* NEW: Map Layer Legend Component (Phase 2.45 - replaces SchoolLegend) */}
+            <MapLayerLegend />
 
             {/* NEW: Status Bar - Fixed at bottom of map (Sprint 3 - Phase 2.5.11) */}
             <MapStatusBar

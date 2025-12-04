@@ -12,7 +12,7 @@ interface MobileBottomSheetProps {
 const PANEL_TITLES: Record<Exclude<PanelType, null>, string> = {
   address: 'Address Research',
   amenities: 'Nearby Amenities',
-  schools: 'School Catchments',
+  schools: 'School',
 };
 
 const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({ children }) => {

@@ -5,16 +5,14 @@
  *
  * Renders school catchment layers on the map with:
  * - Real catchment polygons for schools with catchment data
- * - 3km radius circles (blue, dashed) for schools without catchments
+ * - Adjustable radius circles for schools without catchments (1-8km, 0.5km steps)
  * - Hover tooltips showing school name and catchment type
  * - Performance optimization with memoization
  * - Proper z-index layering and error handling
  *
- * Styling (Style4-V2 Theme):
- * - Desaturated grey-green (#8a9a8a) fill for catchments with 0.2-0.25 opacity
- * - Theme primary color (#0b2d2c) for catchment borders
- * - Blue (#4A90E2) for 3km circles with 0.1 opacity
- * - Dashed pattern for 3km circles, solid for catchments
+ * Styling (Smart Search Theme-A):
+ * - Accent color (#f0492e) for all catchment/circle borders (100% opacity) and fill (15% opacity)
+ * - Dashed pattern for radius circles, solid for catchment polygons
  */
 
 import React, { useMemo } from 'react';
@@ -22,40 +20,54 @@ import { Circle, Polygon, Popup, FeatureGroup } from 'react-leaflet';
 import { Box, Typography } from '@mui/material';
 import { useAppSelector } from '../../../store';
 import { selectSelectedSchools } from '../../../store/slices/smartSearch/schoolPanelSelectors';
-import { selectShowCatchmentRadius } from '../../../store/slices/smartSearchSlice';
+import { selectShowCatchmentRadius, selectSchoolSearchRadius } from '../../../store/slices/smartSearchSlice';
 import type { School } from '../../../types/smartSearch';
 
-// Theme primary color for consistent styling
-const THEME_PRIMARY = '#0b2d2c';
+// Catchment accent color (Theme-A linkButtonActive)
+const CATCHMENT_ACCENT = '#f0492e';
 
 // Constants for styling
 const CATCHMENT_STYLE = {
-  color: THEME_PRIMARY,    // Primary theme color for border
+  color: CATCHMENT_ACCENT,    // Accent color for border
   weight: 2,
-  opacity: 0.8,
-  fillColor: '#8a9a8a',    // Desaturated grey-green for fill
-  fillOpacity: 0.25,
-  dashArray: undefined     // Solid line
+  opacity: 1,                 // 100% opacity for border
+  fillColor: CATCHMENT_ACCENT,    // Same accent color for fill
+  fillOpacity: 0.15,          // 15% opacity for fill
+  dashArray: undefined        // Solid line
 };
 
 const NEARBY_CIRCLE_STYLE = {
-  color: '#4A90E2',        // Blue for 3km circles
+  color: CATCHMENT_ACCENT,    // Accent color for 3km circles
   weight: 2,
-  opacity: 0.6,
-  fillOpacity: 0.1,
-  dashArray: '5, 5'        // Dashed pattern
+  opacity: 1,                 // 100% opacity for border
+  fillColor: CATCHMENT_ACCENT,
+  fillOpacity: 0.15,          // 15% opacity for fill
+  dashArray: '5, 5'           // Dashed pattern to distinguish from catchment polygons
 };
 
 // Fallback circle style for invalid catchment data
 const FALLBACK_CIRCLE_STYLE = {
-  color: '#4A90E2',        // Blue for fallback circles
+  color: CATCHMENT_ACCENT,    // Accent color for fallback circles
   weight: 2,
-  opacity: 0.4,            // Lighter to indicate fallback
-  fillOpacity: 0.08,
-  dashArray: '10, 5'       // Different dash pattern to indicate fallback
+  opacity: 0.6,               // Slightly lighter to indicate fallback
+  fillColor: CATCHMENT_ACCENT,
+  fillOpacity: 0.1,           // Lighter fill to indicate fallback
+  dashArray: '10, 5'          // Different dash pattern to indicate fallback
 };
 
-const NEARBY_RADIUS_METERS = 3000; // 3km radius
+// Default and range for adjustable radius (in km)
+const DEFAULT_RADIUS_KM = 3;
+const MIN_RADIUS_KM = 1;
+const MAX_RADIUS_KM = 8;
+const RADIUS_STEP_KM = 0.5;
+
+// Slider marks for visual guidance
+const RADIUS_MARKS = [
+  { value: 1, label: '1km' },
+  { value: 3, label: '3km' },
+  { value: 5, label: '5km' },
+  { value: 8, label: '8km' },
+];
 
 /**
  * Convert catchment coordinates to Leaflet format
@@ -133,32 +145,40 @@ const convertCatchmentToLeafletFormat = (catchment: any): [number, number][][] |
 
 /**
  * Get catchment style based on school type
- * All catchments use theme primary color for border with desaturated grey-green fills
+ * All catchments use accent color with 100% border opacity and 15% fill opacity
  */
 const getCatchmentStyle = (schoolType: string) => {
-  // All school types use the same desaturated grey-green with theme primary border
+  // All school types use the same accent color styling
   // This creates a cohesive, professional look that doesn't distract from property markers
   return {
-    fillColor: '#8a9a8a',    // Desaturated grey-green for all catchments
-    fillOpacity: 0.2,
-    color: THEME_PRIMARY,    // Theme primary color for border
+    fillColor: CATCHMENT_ACCENT,    // Accent color for all catchments
+    fillOpacity: 0.15,              // 15% opacity for fill
+    color: CATCHMENT_ACCENT,        // Accent color for border
     weight: 2,
-    opacity: 0.8
+    opacity: 1                      // 100% opacity for border
   };
 };
 
 /**
- * Catchment Popup Component
+ * Catchment Popup Component (simplified - slider is in SchoolMarkerPopup)
  * Style4-V2 design system (black/white/gray palette)
  */
 interface CatchmentPopupProps {
   school: School;
   type: 'polygon' | 'circle';
-  note?: string;  // Optional note for special cases (e.g., invalid catchment data)
+  note?: string;
+  radiusKm?: number;
 }
 
-const CatchmentPopup: React.FC<CatchmentPopupProps> = ({ school, type, note }) => {
-  const typeLabel = type === 'polygon' ? 'School Catchment (Official)' : 'Nearby Area (3km Radius)';
+const CatchmentPopup: React.FC<CatchmentPopupProps> = ({
+  school,
+  type,
+  note,
+  radiusKm = DEFAULT_RADIUS_KM,
+}) => {
+  const typeLabel = type === 'polygon'
+    ? 'School Catchment (Official)'
+    : `Nearby Area (${radiusKm}km Radius)`;
 
   return (
     <Box
@@ -169,7 +189,7 @@ const CatchmentPopup: React.FC<CatchmentPopupProps> = ({ school, type, note }) =
         fontFamily: '"Amplitude", "Segoe UI", Roboto, system-ui, sans-serif',
       }}
     >
-      {/* School Name - Style4-V2 heading */}
+      {/* School Name */}
       <Typography
         variant="subtitle1"
         sx={{
@@ -188,7 +208,7 @@ const CatchmentPopup: React.FC<CatchmentPopupProps> = ({ school, type, note }) =
         variant="body2"
         sx={{
           fontSize: '12px',
-          color: type === 'polygon' ? '#4CAF50' : '#4A90E2',
+          color: type === 'polygon' ? '#4CAF50' : CATCHMENT_ACCENT,
           fontWeight: 500,
           mb: 1,
         }}
@@ -196,7 +216,7 @@ const CatchmentPopup: React.FC<CatchmentPopupProps> = ({ school, type, note }) =
         {typeLabel}
       </Typography>
 
-      {/* Optional Note (for fallback or special cases) */}
+      {/* Optional Note */}
       {note && (
         <Typography
           variant="caption"
@@ -209,6 +229,21 @@ const CatchmentPopup: React.FC<CatchmentPopupProps> = ({ school, type, note }) =
           }}
         >
           {note}
+        </Typography>
+      )}
+
+      {/* Hint for radius adjustment */}
+      {type === 'circle' && (
+        <Typography
+          variant="caption"
+          sx={{
+            fontSize: '10px',
+            color: '#999999',
+            display: 'block',
+            fontStyle: 'italic',
+          }}
+        >
+          Click school marker to adjust radius
         </Typography>
       )}
 
@@ -246,40 +281,107 @@ const CatchmentPopup: React.FC<CatchmentPopupProps> = ({ school, type, note }) =
 };
 
 /**
+ * Individual School Circle Component
+ * Uses Redux searchRadius for consistent sizing across map and popup
+ */
+interface SchoolCircleProps {
+  school: School;
+  isFallback?: boolean;
+  radiusKm: number;
+}
+
+const SchoolCircle: React.FC<SchoolCircleProps> = ({ school, isFallback = false, radiusKm }) => {
+  // Convert km to meters for Leaflet
+  const radiusMeters = radiusKm * 1000;
+
+  // Phase 2.46 FIX: Include radiusKm in key to force Circle re-render when radius changes
+  // Leaflet Circle component doesn't automatically update radius prop
+  return (
+    <Circle
+      key={`catchment-circle-${isFallback ? 'fallback-' : ''}${school.school_id}-${radiusKm}`}
+      center={[school.latitude!, school.longitude!]}
+      radius={radiusMeters}
+      pathOptions={isFallback ? FALLBACK_CIRCLE_STYLE : NEARBY_CIRCLE_STYLE}
+    >
+      <Popup minWidth={200} maxWidth={280}>
+        <CatchmentPopup
+          school={school}
+          type="circle"
+          radiusKm={radiusKm}
+          note={isFallback ? 'Catchment data unavailable - showing estimated area' : undefined}
+        />
+      </Popup>
+    </Circle>
+  );
+};
+
+/**
  * Catchment Layer Component
- * Renders real catchments as polygons and generates 3km circles for schools without catchments
+ * Renders real catchments as polygons and adjustable radius circles for schools without catchments
  * Phase 2.13 FIX: Respects showCatchmentRadius toggle for visibility control
  */
 export const CatchmentLayer: React.FC = () => {
-  // Get selected schools from Redux
+  // Get selected schools and search radius from Redux
   const selectedSchools = useAppSelector(selectSelectedSchools);
+  const searchRadius = useAppSelector(selectSchoolSearchRadius) || DEFAULT_RADIUS_KM;
+
+  // Phase 2.46: Debug logging for radius changes
+  console.log('[CatchmentLayer] Rendering with:', {
+    searchRadius,
+    selectedSchoolsCount: selectedSchools.length,
+    selectedSchools: selectedSchools.map(s => ({
+      name: s.school_name,
+      id: s.school_id,
+      lat: s.latitude,
+      lng: s.longitude,
+      catchment_area: s.catchment_area,
+      has_catchment_boundary: !!s.catchment_boundary
+    }))
+  });
 
   // Memoize processed catchments for performance
   const processedCatchments = useMemo(() => {
-    return selectedSchools
+    const result = selectedSchools
       .filter((school) => {
         // Validate school has required coordinates
         return school.latitude != null && school.longitude != null;
       })
       .map((school) => {
         // Determine if school has valid catchment boundary
-        // FIX: Phase 2.14 - catchment_area is a string ID (e.g., "NSW-CATCH-1280"), not a boolean
-        const hasCatchment = (school.catchment_area != null && school.catchment_area !== '') ||
-                            school.catchment_boundary != null;
+        // Phase 2.46 FIX: Only consider a school as having catchment if it has ACTUAL boundary data
+        // catchment_area is just a string ID (e.g., "NSW-CATCH-1280") - doesn't mean boundaries exist
+        // We need actual catchment_boundary array with coordinates to render a polygon
+        const hasCatchmentBoundary = school.catchment_boundary != null &&
+                                     Array.isArray(school.catchment_boundary) &&
+                                     school.catchment_boundary.length > 0;
+        const hasCatchment = hasCatchmentBoundary;
+
+        const catchmentCoords = hasCatchment
+          ? convertCatchmentToLeafletFormat(school.catchment_boundary)
+          : null;
+
+        console.log('[CatchmentLayer] Processing school:', {
+          name: school.school_name,
+          hasCatchment,
+          hasCatchmentCoords: !!catchmentCoords,
+          willRenderCircle: !hasCatchment || (hasCatchment && !catchmentCoords)
+        });
 
         return {
           school,
           hasCatchment,
-          catchmentCoords: hasCatchment
-            ? convertCatchmentToLeafletFormat(school.catchment_boundary)
-            : null,
+          catchmentCoords,
         };
       });
+
+    console.log('[CatchmentLayer] Processed catchments count:', result.length);
+    return result;
   }, [selectedSchools]);
 
   // FIX: Phase 2.14 - Always show catchment visualization when schools are selected
   // The toggle only controls property FILTERING, not polygon visibility
   if (processedCatchments.length === 0) {
+    console.log('[CatchmentLayer] No processed catchments - returning null');
     return null;
   }
 
@@ -302,39 +404,26 @@ export const CatchmentLayer: React.FC = () => {
         }
 
         // CASE 2: School claims catchment but coordinates are invalid/null
-        // Show lighter blue dashed circle as fallback
+        // Show adjustable radius circle as fallback
         if (hasCatchment && !catchmentCoords) {
           console.warn('[CatchmentLayer] Showing fallback circle for school with invalid catchment:', school.school_name);
           return (
-            <Circle
-              key={`catchment-circle-fallback-${school.school_id}`}
-              center={[school.latitude!, school.longitude!]}
-              radius={NEARBY_RADIUS_METERS}
-              pathOptions={FALLBACK_CIRCLE_STYLE}
-            >
-              <Popup minWidth={200} maxWidth={280}>
-                <CatchmentPopup
-                  school={school}
-                  type="circle"
-                  note="Catchment data unavailable - showing estimated area"
-                />
-              </Popup>
-            </Circle>
+            <SchoolCircle
+              key={`catchment-circle-fallback-${school.school_id}-${searchRadius}`}
+              school={school}
+              isFallback
+              radiusKm={searchRadius}
+            />
           );
         }
 
-        // CASE 3: School has no catchment data - show standard 3km radius circle
+        // CASE 3: School has no catchment data - show adjustable radius circle
         return (
-          <Circle
-            key={`catchment-circle-${school.school_id}`}
-            center={[school.latitude!, school.longitude!]}
-            radius={NEARBY_RADIUS_METERS}
-            pathOptions={NEARBY_CIRCLE_STYLE}
-          >
-            <Popup minWidth={200} maxWidth={280}>
-              <CatchmentPopup school={school} type="circle" />
-            </Popup>
-          </Circle>
+          <SchoolCircle
+            key={`catchment-circle-${school.school_id}-${searchRadius}`}
+            school={school}
+            radiusKm={searchRadius}
+          />
         );
       })}
     </FeatureGroup>

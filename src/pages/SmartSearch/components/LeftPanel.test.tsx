@@ -80,6 +80,7 @@ const getDefaultState = (): SmartSearchState => ({
     showSchoolsOnMap: true,
     showCatchmentRadius: false,
     selectiveSchoolFilter: false,
+    searchRadius: 3,
   },
   amenities: {
     isLoading: false,

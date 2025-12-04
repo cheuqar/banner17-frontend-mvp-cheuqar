@@ -103,6 +103,12 @@ export interface SchoolFilters {
 }
 
 /**
+ * School panel tab type
+ * Phase 2.47: Added for tab-based panel structure
+ */
+export type SchoolPanelTab = 'search' | 'selected';
+
+/**
  * Complete school panel state
  */
 export interface SchoolPanelState {
@@ -126,6 +132,9 @@ export interface SchoolPanelState {
 
   /** Error message if any */
   error: string | null;
+
+  /** Active panel tab - Phase 2.47 */
+  activeTab: SchoolPanelTab;
 }
 
 /**
@@ -150,6 +159,7 @@ export const DEFAULT_SCHOOL_PANEL_STATE: SchoolPanelState = {
   visibleSchoolMarkers: [],
   loading: false,
   error: null,
+  activeTab: 'search',
 };
 
 /**

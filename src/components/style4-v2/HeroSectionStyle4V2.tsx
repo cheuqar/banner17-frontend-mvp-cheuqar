@@ -7,6 +7,9 @@ import {
   Stack
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import { useAppSelector } from '../../store';
+import { selectThemeColors } from '../../store/slices/themeSlice';
+
 
 /**
  * HeroSectionStyle4V2 - Full-screen hero section with background image
@@ -14,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
  */
 const HeroSectionStyle4V2: React.FC = () => {
   const navigate = useNavigate();
+  const themeColors = useAppSelector(selectThemeColors);
 
   const handleSearchNavigation = () => {
     navigate('/search');
@@ -27,6 +31,7 @@ const HeroSectionStyle4V2: React.FC = () => {
         display: 'flex',
         alignItems: 'center',
         py: { xs: 15, md: 25 },
+        overflow: 'hidden',
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -74,7 +79,14 @@ const HeroSectionStyle4V2: React.FC = () => {
             lineHeight: 1.15,
           }}
         >
-          Banner17{' '}
+          <Box
+            component="span"
+            sx={{
+              color: themeColors.linkButtonActive,
+            }}
+          >
+            Banner17
+          </Box>{' '}
           <Box
             component="span"
             sx={{

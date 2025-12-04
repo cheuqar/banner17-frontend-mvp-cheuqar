@@ -14,12 +14,16 @@ import {
   TrendingUp,
   Business
 } from '@mui/icons-material';
+import { useAppSelector } from '../../store';
+import { selectThemeColors } from '../../store/slices/themeSlice';
 
 /**
  * WhoWeServeStyle4V2 - Light background buyer type cards section
  * Displays different types of property buyers we serve
  */
 const WhoWeServeStyle4V2: React.FC = () => {
+  const themeColors = useAppSelector(selectThemeColors);
+
   const buyerTypes = [
     {
       icon: <HomeWork sx={{ fontSize: 48 }} />,
@@ -112,27 +116,45 @@ const WhoWeServeStyle4V2: React.FC = () => {
               <Card
                 sx={{
                   backgroundColor: '#ffffff',
-                  border: '1px solid #e5e5e5',
+                  border: '2px solid #e5e5e5',
                   borderRadius: 2,
                   p: 4,
                   height: '100%',
                   textAlign: 'center',
-                  transition: 'all 0.3s ease',
+                  transition: 'transform 0.3s ease, border-color 0.3s ease, box-shadow 3s ease, background-color 3s ease',
                   cursor: 'pointer',
                   boxShadow: 'none',
                   '&:hover': {
                     transform: 'translateY(-4px)',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
-                    borderColor: '#000000',
+                    borderColor: themeColors.linkButtonActive,
+                    backgroundColor: themeColors.linkButtonActive,
+                    boxShadow: `
+                      0 0 20px ${themeColors.linkButtonActive}40,
+                      0 0 40px ${themeColors.linkButtonActive}30,
+                      0 0 60px ${themeColors.linkButtonActive}20,
+                      0 8px 32px rgba(0, 0, 0, 0.15),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.5)
+                    `,
+                    '& .card-icon': {
+                      color: '#ffffff',
+                    },
+                    '& .card-title': {
+                      color: '#ffffff',
+                    },
+                    '& .card-description': {
+                      color: 'rgba(255, 255, 255, 0.9)',
+                    },
                   },
                 }}
               >
                 <CardContent sx={{ p: 0 }}>
                   {/* Icon */}
                   <Box
+                    className="card-icon"
                     sx={{
                       color: '#000000',
                       mb: 3,
+                      transition: 'color 3s ease',
                     }}
                   >
                     {buyer.icon}
@@ -142,12 +164,14 @@ const WhoWeServeStyle4V2: React.FC = () => {
                   <Typography
                     variant="h3"
                     component="h3"
+                    className="card-title"
                     sx={{
                       color: '#000000',
                       mb: 2,
                       fontSize: '1.5rem',
                       fontWeight: 600,
                       lineHeight: 1.3,
+                      transition: 'color 3s ease',
                     }}
                   >
                     {buyer.title}
@@ -156,10 +180,12 @@ const WhoWeServeStyle4V2: React.FC = () => {
                   {/* Description */}
                   <Typography
                     variant="body2"
+                    className="card-description"
                     sx={{
                       color: '#666666',
                       fontSize: '1rem',
                       lineHeight: 1.5,
+                      transition: 'color 3s ease',
                     }}
                   >
                     {buyer.description}

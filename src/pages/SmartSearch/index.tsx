@@ -154,6 +154,8 @@ const SmartSearchPage: React.FC = () => {
     // Phase 2.41: Selectors for auto-progressive loading
     const totalCount = useSelector((state: RootState) => state.smartSearch.totalCount);
     const hasMore = totalCount > properties.length;
+    // Phase 2.46 FIX: Selector for spatial filter to skip progressive loading during catchment searches
+    const activeSpatialFilter = useSelector((state: RootState) => state.smartSearch.activeSpatialFilter);
 
     // Phase 2.28.7 FIX: Serialize array to prevent infinite re-renders
     // Arrays create new references on every Redux update, causing useEffect to trigger infinitely
@@ -221,12 +223,17 @@ const SmartSearchPage: React.FC = () => {
         // 4. Under max limit (2000)
         // 5. Initial load completed (properties.length > 0)
         // 6. Initial search was dispatched
+        // 7. Phase 2.46 FIX: Skip progressive loading for school catchment searches
+        //    Backend returns incorrect total_count that doesn't reflect catchment-filtered count,
+        //    causing unnecessary second API call. All catchment-filtered results are returned in first call.
+        const isSchoolCatchmentSearch = activeSpatialFilter === 'schoolCatchment';
         const shouldLoadMore = !loading &&
             !searchPending &&
             hasMore &&
             properties.length > 0 &&
             properties.length < MAX_PROPERTIES_LIMIT &&
-            initialSearchDispatched.current;
+            initialSearchDispatched.current &&
+            !isSchoolCatchmentSearch;
 
         // Debug: Log current state for progressive loading (less verbose)
         if (shouldLoadMore) {
@@ -234,6 +241,16 @@ const SmartSearchPage: React.FC = () => {
                 propertiesLength: properties.length,
                 totalCount,
                 maxLimit: MAX_PROPERTIES_LIMIT,
+            });
+        }
+
+        // Phase 2.46 FIX: Log when progressive loading is skipped for catchment searches
+        if (isSchoolCatchmentSearch && hasMore && !loading && !searchPending) {
+            console.log('[SmartSearch] Progressive loading SKIPPED - school catchment filter active:', {
+                propertiesLength: properties.length,
+                totalCount,
+                activeSpatialFilter,
+                reason: 'Backend total_count is inaccurate for catchment-filtered searches',
             });
         }
 
@@ -251,7 +268,7 @@ const SmartSearchPage: React.FC = () => {
 
             return () => clearTimeout(loadMoreTimer);
         }
-    }, [properties.length, hasMore, searchPending, loading, totalCount, dispatch]);
+    }, [properties.length, hasMore, searchPending, loading, totalCount, dispatch, activeSpatialFilter]);
 
     // Feature 003: handleSearch function removed - SearchHeader manages its own address search
 

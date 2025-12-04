@@ -10,6 +10,7 @@ import {
  * Features company story in glass-effect container
  */
 const PersonalStoryStyle4V2: React.FC = () => {
+
   return (
     <Box
       id="about"
