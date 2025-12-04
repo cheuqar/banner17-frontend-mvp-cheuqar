@@ -53,6 +53,7 @@ export const LAYER_COLORS: Record<string, string> = {
   beaches: '#0288d1', // Light Blue
   sports: '#c2185b', // Pink
   child_care: '#e91e63', // Pink
+  transport_stations: '#607d8b', // Blue Grey
 
   // Amenity clusters (mixed categories)
   amenities_mixed: '#5C6BC0', // Indigo
@@ -120,6 +121,12 @@ export const MAP_LAYER_CONFIGS: MapLayerConfig[] = [
     id: 'amenities_sports',
     name: 'Sports/Recreation',
     color: LAYER_COLORS.sports,
+    category: 'poi',
+  },
+  {
+    id: 'amenities_transport',
+    name: 'Transport Stations',
+    color: LAYER_COLORS.transport_stations,
     category: 'poi',
   },
 

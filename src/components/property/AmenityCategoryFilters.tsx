@@ -29,6 +29,7 @@ import {
   ClearAll,
   SelectAll,
   ChildCare,
+  Train,
 } from '@mui/icons-material';
 
 import type { AmenitiesByCategory } from '../../services/amenitiesService';
@@ -74,6 +75,11 @@ export const AMENITY_CATEGORIES = {
     label: 'Tourist Attractions',
     icon: Attractions,
     color: '#795548', // brown
+  },
+  transport_stations: {
+    label: 'Transport Stations',
+    icon: Train,
+    color: '#607d8b', // blue grey
   },
 } as const;
 

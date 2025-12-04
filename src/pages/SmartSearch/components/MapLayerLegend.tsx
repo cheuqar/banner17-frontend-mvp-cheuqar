@@ -137,6 +137,9 @@ const MapLayerLegend: React.FC = () => {
           } else if (normalized.includes('beach')) {
             name = 'Beaches';
             color = LAYER_COLORS.beaches;
+          } else if (normalized.includes('transport')) {
+            name = 'Transport Stations';
+            color = LAYER_COLORS.transport_stations;
           } else if (normalized.includes('sport')) {
             name = 'Sports/Recreation';
             color = LAYER_COLORS.sports;
