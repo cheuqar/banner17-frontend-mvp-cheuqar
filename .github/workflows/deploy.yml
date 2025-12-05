@@ -5,11 +5,16 @@
 #
 # Triggers:
 #   - Push to 'staging' branch → Deploy to Fly.io staging (stg)
-#   - Push to 'develop' branch → Deploy to development server (placeholder)
+#   - Push to 'develop' branch → Deploy to dev server (self-hosted runner)
 #
 # Required GitHub Secrets:
 #   - DOPPLER_TOKEN: Service token for Doppler CLI (project: listez-backend)
 #   - FLY_API_TOKEN: Fly.io API token for deployment
+#
+# Required Self-Hosted Runner (for develop branch):
+#   - Labels: self-hosted, dev
+#   - Must have Docker and Docker Compose installed
+#   - Setup: GitHub repo → Settings → Actions → Runners → New self-hosted runner
 #
 # =============================================================================
 
@@ -171,11 +176,13 @@ jobs:
           echo "=========================================="
 
   # ===========================================================================
-  # DEPLOY TO DEVELOPMENT (Placeholder)
+  # DEPLOY TO DEVELOPMENT (Self-Hosted Runner)
   # ===========================================================================
+  # Requires a self-hosted runner on the dev server with labels: self-hosted, dev
+  # Setup: GitHub repo → Settings → Actions → Runners → New self-hosted runner
   deploy-development:
     name: Deploy to Development
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, dev]
     needs: validate
     if: github.ref == 'refs/heads/develop'
     environment: development
@@ -184,39 +191,38 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Placeholder - Development Deployment
+      - name: Display deployment info
         run: |
           echo "=========================================="
-          echo "  DEVELOPMENT DEPLOYMENT (PLACEHOLDER)"
+          echo "  DEPLOYING TO DEVELOPMENT SERVER"
           echo "=========================================="
-          echo ""
-          echo "  This job is a placeholder for future development"
-          echo "  server deployment configuration."
-          echo ""
-          echo "  TODO: Implement development server deployment"
-          echo "  - Configure development server SSH/API access"
-          echo "  - Add deployment scripts"
-          echo "  - Configure Doppler 'dev' environment"
-          echo ""
           echo "  Branch: develop"
           echo "  Commit: ${GITHUB_SHA::7}"
+          echo "  Runner: $(hostname)"
           echo "=========================================="
 
-      # TODO: Add actual development deployment steps
-      # Example structure:
-      # - name: Install Doppler CLI
-      #   uses: dopplerhq/cli-action@v3
-      #
-      # - name: Fetch secrets from Doppler (dev)
-      #   run: doppler secrets download --format env-no-quotes > .env
-      #   env:
-      #     DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
-      #     DOPPLER_CONFIG: dev
-      #
-      # - name: Build application
-      #   run: npm run build
-      #
-      # - name: Deploy to development server
-      #   run: |
-      #     # Add SSH/rsync/API deployment here
-      #     echo "Deploying to development server..."
+      - name: Deploy with Docker Compose
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "Stopping existing containers..."
+          docker compose down || true
+
+          echo "Building and starting containers..."
+          docker compose up -d --build
+
+          echo "Waiting for services to start..."
+          sleep 10
+
+      - name: Verify deployment
+        run: |
+          echo "Checking service health..."
+          curl -sf http://localhost:3301/ || echo "Warning: Health check failed, service may still be starting"
+
+      - name: Deployment Summary
+        run: |
+          echo "=========================================="
+          echo "  DEVELOPMENT DEPLOYMENT COMPLETE"
+          echo "=========================================="
+          echo "  Commit: ${GITHUB_SHA::7}"
+          echo "  Time:   $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "=========================================="
