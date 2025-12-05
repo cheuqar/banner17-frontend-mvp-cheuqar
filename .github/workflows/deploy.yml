@@ -207,8 +207,8 @@ jobs:
           echo "Stopping existing containers..."
           docker compose down || true
 
-          echo "Building and starting containers..."
-          docker compose up -d --build
+          echo "Building and starting containers with Doppler (dev config)..."
+          doppler run --config dev -- docker compose up -d --build
 
           echo "Waiting for services to start..."
           sleep 10
