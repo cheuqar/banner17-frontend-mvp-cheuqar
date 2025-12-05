@@ -3,30 +3,59 @@ import {
   Box,
   Container,
   Typography,
-  Grid
+  Grid,
+  Card,
+  CardContent
 } from '@mui/material';
+import {
+  Search,
+  CameraAlt,
+  Home,
+  TrendingUp
+} from '@mui/icons-material';
+import { useAppSelector } from '../../store';
+import { selectThemeColors } from '../../store/slices/themeSlice';
 
 /**
- * NumbersProofStyle4V2 - Statistics section with background image
- * Displays key metrics with dramatic visual impact
+ * NumbersProofStyle4V2 - "What we do" section with background image
+ * Displays key platform capabilities with dramatic visual impact
  */
 const NumbersProofStyle4V2: React.FC = () => {
-  const stats = [
-    { number: '500K+', label: 'Properties' },
-    { number: '25+', label: 'Cities' },
-    { number: '10K+', label: 'Users' },
-    { number: '95%', label: 'Accuracy' },
+  const themeColors = useAppSelector(selectThemeColors);
+
+  const features = [
+    {
+      icon: <Search sx={{ fontSize: 40 }} />,
+      title: 'Search Beyond Basics',
+      description: 'Use natural language to describe your ideal home. Our AI understands context, lifestyle preferences, and subtle requirements that traditional filters miss.'
+    },
+    {
+      icon: <CameraAlt sx={{ fontSize: 40 }} />,
+      title: 'Image & Style Search',
+      description: 'Upload photos of interiors, exteriors, or architectural styles you love. Find properties with similar aesthetics and design elements.'
+    },
+    {
+      icon: <Home sx={{ fontSize: 40 }} />,
+      title: 'Lifestyle Matching',
+      description: 'Tell us about your daily routine, hobbies, and priorities. We\'ll match you with properties that complement your lifestyle and future plans.'
+    },
+    {
+      icon: <TrendingUp sx={{ fontSize: 40 }} />,
+      title: 'Investor & Developer Tools',
+      description: 'Access market analytics, development potential assessments, rental yield calculations, and growth forecasts for informed investment decisions.'
+    }
   ];
 
   return (
     <Box
-      id="numbers"
+      id="features"
       sx={{
-        minHeight: '60vh',
+        minHeight: '80vh',
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
         py: { xs: 12, md: 18 },
+        overflow: 'hidden',
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -47,7 +76,7 @@ const NumbersProofStyle4V2: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
           zIndex: 2,
         },
       }}
@@ -57,66 +86,140 @@ const NumbersProofStyle4V2: React.FC = () => {
         sx={{
           position: 'relative',
           zIndex: 3,
-          textAlign: 'center',
         }}
       >
-        {/* Section Title */}
-        <Typography
-          variant="h2"
-          component="h2"
-          sx={{
-            color: '#ffffff',
-            mb: 2,
-            fontSize: { xs: '1.875rem', md: '2.25rem' },
-            fontWeight: 600,
-            lineHeight: 1.25,
-          }}
-        >
-          By the Numbers
-        </Typography>
+        {/* Section Title - Aligned with Hero Section Design */}
+        <Box sx={{ textAlign: 'center', mb: 8 }}>
+          <Typography
+            variant="h2"
+            component="h2"
+            sx={{
+              color: '#ffffff',
+              mb: 3,
+              fontSize: { xs: '2rem', md: '2.5rem' },
+              fontWeight: 700,
+              lineHeight: 1.2,
+            }}
+          >
+            What{' '}
+            <span
+              style={{
+                color: themeColors.linkButtonActive,
+              }}
+            >
+              we do
+            </span>{' '}
+            <span
+              style={{
+                fontFamily: 'Caveat, cursive',
+                fontStyle: 'italic',
+                color: '#e0e0e0',
+                fontWeight: 600,
+              }}
+            >
+              differently
+            </span>
+          </Typography>
 
-        {/* Subtitle */}
-        <Typography
-          variant="body1"
-          sx={{
-            color: '#e0e0e0',
-            mb: 8,
-            fontSize: '1.1rem',
-            lineHeight: 1.6,
-          }}
-        >
-          Proven results across Australia
-        </Typography>
+          {/* Subtitle - Matching Hero Section Style */}
+          <Typography
+            variant="body1"
+            sx={{
+              color: '#e0e0e0',
+              mb: 2,
+              maxWidth: 700,
+              mx: 'auto',
+              fontSize: '1.1rem',
+              lineHeight: 1.6,
+            }}
+          >
+            Our AI-powered platform goes beyond traditional property search.
+            Discover homes that truly match your lifestyle, not just your filters.
+          </Typography>
+        </Box>
 
-        {/* Statistics Grid */}
+        {/* Features Grid */}
         <Grid container spacing={4}>
-          {stats.map((stat, index) => (
-            <Grid item xs={6} md={3} key={index}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Typography
-                  variant="h1"
-                  component="div"
-                  sx={{
-                    color: '#ffffff',
-                    fontSize: { xs: '2.5rem', md: '3.5rem' },
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    mb: 1,
-                  }}
-                >
-                  {stat.number}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: '#cccccc',
-                    fontSize: '1.1rem',
-                    fontWeight: 500,
-                  }}
-                >
-                  {stat.label}
-                </Typography>
-              </Box>
+          {features.map((feature, index) => (
+            <Grid item xs={12} md={6} key={index}>
+              <Card
+                sx={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                  border: '2px solid transparent',
+                  borderRadius: 2,
+                  p: 4,
+                  height: '100%',
+                  transition: 'transform 0.3s ease, border-color 0.3s ease, box-shadow 3s ease, background-color 3s ease',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    borderColor: themeColors.linkButtonActive,
+                    backgroundColor: themeColors.linkButtonActive,
+                    boxShadow: `
+                      0 0 20px ${themeColors.linkButtonActive}40,
+                      0 0 40px ${themeColors.linkButtonActive}30,
+                      0 0 60px ${themeColors.linkButtonActive}20,
+                      0 8px 32px rgba(0, 0, 0, 0.15),
+                      inset 0 1px 0 rgba(255, 255, 255, 0.5)
+                    `,
+                    '& .card-icon': {
+                      color: '#ffffff',
+                    },
+                    '& .card-title': {
+                      color: '#ffffff',
+                    },
+                    '& .card-description': {
+                      color: 'rgba(255, 255, 255, 0.9)',
+                    },
+                  },
+                }}
+              >
+                <CardContent sx={{ p: 0 }}>
+                  {/* Icon */}
+                  <Box
+                    className="card-icon"
+                    sx={{
+                      color: '#000000',
+                      mb: 3,
+                      transition: 'color 3s ease',
+                    }}
+                  >
+                    {feature.icon}
+                  </Box>
+
+                  {/* Title */}
+                  <Typography
+                    variant="h3"
+                    component="h3"
+                    className="card-title"
+                    sx={{
+                      color: '#000000',
+                      mb: 2,
+                      fontSize: '1.75rem',
+                      fontWeight: 600,
+                      lineHeight: 1.3,
+                      transition: 'color 3s ease',
+                    }}
+                  >
+                    {feature.title}
+                  </Typography>
+
+                  {/* Description */}
+                  <Typography
+                    variant="body1"
+                    className="card-description"
+                    sx={{
+                      color: '#666666',
+                      fontSize: '1rem',
+                      lineHeight: 1.6,
+                      transition: 'color 3s ease',
+                    }}
+                  >
+                    {feature.description}
+                  </Typography>
+                </CardContent>
+              </Card>
             </Grid>
           ))}
         </Grid>

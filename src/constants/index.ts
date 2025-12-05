@@ -21,15 +21,15 @@ export const CHAT_STEPS = {
   COMPLETE: 'complete',
 } as const;
 
-// Property Types
+// Property Types - Phase 2.41 FIX: Values must match database property_type values (case-sensitive)
 export const PROPERTY_TYPES = {
-  HOUSE: 'house',
-  APARTMENT: 'apartment',
-  TOWNHOUSE: 'townhouse',
-  VILLA: 'villa',
-  UNIT: 'unit',
-  LAND: 'land',
-  COMMERCIAL: 'commercial',
+  HOUSE: 'House',
+  APARTMENT: 'Apartment',
+  TOWNHOUSE: 'Townhouse',
+  VILLA: 'Villa',
+  UNIT: 'Unit',
+  LAND: 'Land',
+  COMMERCIAL: 'Commercial',
 } as const;
 
 // Input Control Types

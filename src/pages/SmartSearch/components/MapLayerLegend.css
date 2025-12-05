@@ -1,0 +1,21 @@
+/**
+ * Map Layer Legend Styles
+ * Phase 2.45 - Style4-V2 Design System
+ */
+
+.map-layer-legend {
+  /* Base card styling handled by MUI sx props */
+}
+
+.legend-item {
+  transition: background-color 0.15s ease;
+}
+
+.legend-item:hover {
+  background-color: #F5F5F5;
+}
+
+/* Ensure teardrop icons render crisply */
+.legend-item svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+}

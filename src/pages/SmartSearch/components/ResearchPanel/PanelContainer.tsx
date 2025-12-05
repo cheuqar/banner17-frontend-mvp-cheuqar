@@ -20,7 +20,7 @@ interface PanelContainerProps {
 const PANEL_TITLES: Record<Exclude<PanelType, null>, string> = {
   address: 'Address Research',
   amenities: 'Nearby Amenities',
-  schools: 'School Catchments',
+  schools: 'School',
 };
 
 const PanelContainer: React.FC<PanelContainerProps> = ({ children, onCenterSchool, onCenterAmenity }) => {

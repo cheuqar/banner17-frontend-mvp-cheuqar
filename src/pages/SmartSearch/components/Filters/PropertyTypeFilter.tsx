@@ -12,13 +12,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setPropertyTypesFilter, clearFilter } from '../../../../store/slices/smartSearchSlice';
 import type { RootState } from '../../../../store';
 
+// Phase 2.41 FIX: Values must match database property_type values (case-sensitive)
 const PROPERTY_TYPES = [
-  { value: 'house', label: 'House' },
-  { value: 'apartment', label: 'Apartment' },
-  { value: 'townhouse', label: 'Townhouse' },
-  { value: 'unit', label: 'Unit' },
-  { value: 'land', label: 'Land' },
-  { value: 'studio', label: 'Studio' },
+  { value: 'House', label: 'House' },
+  { value: 'Apartment', label: 'Apartment' },
+  { value: 'Townhouse', label: 'Townhouse' },
+  { value: 'Unit', label: 'Unit' },
+  { value: 'Land', label: 'Land' },
+  { value: 'Studio', label: 'Studio' },
 ];
 
 const PropertyTypeFilter: React.FC = () => {

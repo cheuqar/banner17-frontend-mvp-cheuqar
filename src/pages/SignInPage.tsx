@@ -6,6 +6,9 @@ import SignInForm from '../components/auth/SignInForm';
 import AuthErrorAlert from '../components/auth/AuthErrorAlert';
 import { useReturnUrl } from '../hooks/useReturnUrl';
 import { style4V2SharedTheme } from '../theme/style4V2SharedTheme';
+import { useAppSelector } from '../store';
+import { selectThemeColors, selectCurrentTheme } from '../store/slices/themeSlice';
+import CompactThemeSwitcher from '../components/common/CompactThemeSwitcher';
 
 /**
  * SignInPage Component
@@ -34,6 +37,10 @@ export default function SignInPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const returnUrl = useReturnUrl(); // FR-031, FR-047: Extract return URL
   const [error, setError] = useState<string | null>(null);
+
+  // Theme support
+  const themeColors = useAppSelector(selectThemeColors);
+  const currentTheme = useAppSelector(selectCurrentTheme);
 
   // FR-049: Redirect to home if already authenticated
   useEffect(() => {
@@ -81,70 +88,92 @@ export default function SignInPage() {
       sx={{
         minHeight: '100vh',
         display: 'flex',
-        alignItems: 'center',
-        bgcolor: style4V2SharedTheme.palette.background.default, // FR-032: #FFFFFF
+        flexDirection: 'column',
+        bgcolor: themeColors.primaryLight, // Dynamic theme background
+        transition: 'background-color 0.3s ease',
         py: 4, // FR-034: 32px padding (MUI spacing: 4 = 32px)
       }}
+      data-theme={currentTheme}
     >
-      <Container maxWidth="sm">
-        <Box sx={{ p: 4 }}> {/* FR-034: 32px padding */}
-          {/* Page Title */}
-          <Typography
-            variant="h1"
-            component="h1"
-            sx={{
-              mb: 1,
-              fontSize: '2rem',
-              fontWeight: 600,
-              color: style4V2SharedTheme.palette.text.primary, // FR-032: #000000
-              textAlign: 'center',
-            }}
-          >
-            Welcome Back
-          </Typography>
-
-          <Typography
-            variant="body2"
-            sx={{
-              mb: 4,
-              color: style4V2SharedTheme.palette.text.secondary, // Gray
-              textAlign: 'center',
-            }}
-          >
-            Sign in to continue to your account
-          </Typography>
-
-          {/* FR-027: AuthErrorAlert for error display */}
-          <AuthErrorAlert error={error} />
-
-          {/* FR-027: SignInForm component */}
-          <SignInForm
-            onSuccess={handleSignInSuccess}
-            onError={handleSignInError}
-          />
-
-          {/* Link to Sign Up page */}
-          <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Typography variant="body2" sx={{ color: style4V2SharedTheme.palette.text.secondary }}>
-              Don't have an account?{' '}
-              <MuiLink
-                component={Link}
-                to="/sign-up"
-                sx={{
-                  color: style4V2SharedTheme.palette.primary.main,
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                Sign Up
-              </MuiLink>
+      {/* Main Content - Centered */}
+      <Box
+        sx={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <Container maxWidth="sm">
+          <Box sx={{ p: 4 }}> {/* FR-034: 32px padding */}
+            {/* Page Title */}
+            <Typography
+              variant="h1"
+              component="h1"
+              sx={{
+                mb: 1,
+                fontSize: '2rem',
+                fontWeight: 600,
+                color: style4V2SharedTheme.palette.text.primary, // FR-032: #000000
+                textAlign: 'center',
+              }}
+            >
+              Welcome Back
             </Typography>
+
+            <Typography
+              variant="body2"
+              sx={{
+                mb: 4,
+                color: style4V2SharedTheme.palette.text.secondary, // Gray
+                textAlign: 'center',
+              }}
+            >
+              Sign in to continue to your account
+            </Typography>
+
+            {/* FR-027: AuthErrorAlert for error display */}
+            <AuthErrorAlert error={error} />
+
+            {/* FR-027: SignInForm component */}
+            <SignInForm
+              onSuccess={handleSignInSuccess}
+              onError={handleSignInError}
+            />
+
+            {/* Link to Sign Up page */}
+            <Box sx={{ mt: 3, textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ color: style4V2SharedTheme.palette.text.secondary }}>
+                Don't have an account?{' '}
+                <MuiLink
+                  component={Link}
+                  to="/sign-up"
+                  sx={{
+                    color: style4V2SharedTheme.palette.primary.main,
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    '&:hover': {
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  Sign Up
+                </MuiLink>
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-      </Container>
+        </Container>
+      </Box>
+
+      {/* Theme Switcher - Bottom of page */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          py: 2,
+        }}
+      >
+        <CompactThemeSwitcher darkMode />
+      </Box>
     </Box>
   );
 }

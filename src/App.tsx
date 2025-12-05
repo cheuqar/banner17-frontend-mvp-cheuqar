@@ -19,6 +19,8 @@ import SmartSearchPage from './pages/SmartSearch';
 import SignUpPage from './pages/SignUpPage';
 import SignInPage from './pages/SignInPage';
 import EmailVerificationRequired from './pages/EmailVerificationRequired';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsOfServicePage from './pages/TermsOfServicePage';
 
 
 import LeftNavigation, { type NavigationPage } from './components/layout/LeftNavigation';
@@ -187,6 +189,10 @@ function AppContent() {
           <Route path="/sign-in" element={<SignInPage />} />
           <Route path="/sign-up" element={<SignUpPage />} />
           <Route path="/verify-email" element={<EmailVerificationRequired />} />
+
+          {/* Public Legal Pages */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
 
           {/* Authenticated Routes */}
           <Route path="/welcome" element={

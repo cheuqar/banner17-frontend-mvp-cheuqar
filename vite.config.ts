@@ -9,7 +9,7 @@ const getAllowedHosts = (): true | string[] => {
     // If 'all' is specified, return true, otherwise return the array
     return hosts.includes('all') ? true : hosts
   }
-  
+
   // Default: allow all hosts for development flexibility
   return true
 }
@@ -46,7 +46,7 @@ export default defineConfig({
   build: {
     sourcemap: true,
     rollupOptions: {
-      onwarn: (warning, warn) => {
+      onwarn(warning, warn) {
         // Suppress certain warnings that might cause issues
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return;
         warn(warning);

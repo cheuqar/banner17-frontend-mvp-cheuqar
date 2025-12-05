@@ -82,7 +82,7 @@ export const fetchPropertyAmenities = async (
   } = {}
 ): Promise<AmenitiesResponse> => {
   const {
-    categories = ['hospitals', 'libraries', 'shopping', 'schools', 'tourist_attractions', 'beaches', 'sports'],
+    categories = ['hospitals', 'libraries', 'shopping', 'schools', 'child_care', 'tourist_attractions', 'beaches', 'sports', 'transport_stations'],
     limitPerCategory = 10,
     radiusKm = 8
   } = options;
@@ -138,9 +138,11 @@ export const getAmenityCategories = () => {
     { key: 'libraries', label: 'Libraries', icon: '📚' },
     { key: 'shopping', label: 'Shopping', icon: '🛒' },
     { key: 'schools', label: 'Schools', icon: '🏫' },
+    { key: 'child_care', label: 'Child Care', icon: '👶' },
     { key: 'tourist_attractions', label: 'Tourist Attractions', icon: '🎢' },
     { key: 'beaches', label: 'Beaches', icon: '🏖️' },
-    { key: 'sports', label: 'Sports', icon: '⚽' }
+    { key: 'sports', label: 'Sports', icon: '⚽' },
+    { key: 'transport_stations', label: 'Transport', icon: '🚆' }
   ];
 };
 

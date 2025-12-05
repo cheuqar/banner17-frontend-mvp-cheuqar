@@ -12,6 +12,7 @@ import type {
   School,
   SchoolFilters,
   SchoolPanelState,
+  SchoolPanelTab,
 } from '../../../types/smartSearch';
 import {
   DEFAULT_SCHOOL_FILTERS,
@@ -206,15 +207,24 @@ const schoolPanelSlice = createSlice({
      */
     deselectSchool: (state, action: PayloadAction<string>) => {
       const schoolId = action.payload;
+      const schoolToDeselect = state.selectedSchools.find(s => s.school_id === schoolId);
+      console.log('[schoolPanelSlice] deselectSchool action received:', {
+        schoolId,
+        schoolName: schoolToDeselect?.school_name || 'NOT FOUND',
+        currentSelectedCount: state.selectedSchools.length,
+      });
       state.selectedSchools = state.selectedSchools.filter(
         s => s.school_id !== schoolId
       );
+      console.log('[schoolPanelSlice] After deselect, selectedSchools count:', state.selectedSchools.length);
     },
 
     /**
      * Clear all selected schools
      */
     clearSelectedSchools: (state) => {
+      console.log('[schoolPanelSlice] clearSelectedSchools called! Previous count:', state.selectedSchools.length);
+      console.trace('[schoolPanelSlice] clearSelectedSchools stack trace');
       state.selectedSchools = [];
     },
 
@@ -264,6 +274,15 @@ const schoolPanelSlice = createSlice({
       state.error = null;
     },
 
+    // ========== TAB ACTIONS - Phase 2.47 ==========
+
+    /**
+     * Set active panel tab
+     */
+    setSchoolPanelTab: (state, action: PayloadAction<SchoolPanelTab>) => {
+      state.activeTab = action.payload;
+    },
+
     // ========== BATCH ACTIONS ==========
 
     /**
@@ -306,6 +325,8 @@ export const {
   setLoading,
   setError,
   clearError,
+  // Tab actions - Phase 2.47
+  setSchoolPanelTab,
   // Batch actions
   resetPanel,
 } = schoolPanelSlice.actions;

@@ -151,6 +151,7 @@ const getDefaultState = (): SmartSearchState => ({
     showSchoolsOnMap: true,
     showCatchmentRadius: false,
     selectiveSchoolFilter: false,
+    searchRadius: 3,
   },
   amenities: {
     isLoading: false,
@@ -181,6 +182,7 @@ const getDefaultState = (): SmartSearchState => ({
   searchPending: false,
   propertyPanelVisible: true,
   filtersOverlayVisible: false,
+  showSuburbBoundaries: false,
 });
 
 describe('SmartSearch - Phase 2.17.6: Responsive Behavior', () => {

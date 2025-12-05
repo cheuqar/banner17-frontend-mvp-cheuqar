@@ -14,6 +14,8 @@ import {
 } from '@mui/material';
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAppSelector } from '../../store';
+import { selectThemeColors } from '../../store/slices/themeSlice';
 
 /**
  * HeaderStyle4V2 - Shared navigation header component
@@ -24,6 +26,7 @@ const HeaderStyle4V2: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const navigate = useNavigate();
+  const themeColors = useAppSelector(selectThemeColors);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -71,19 +74,18 @@ const HeaderStyle4V2: React.FC = () => {
             }}
             onClick={() => navigate('/')}
           >
-            <Typography
-              variant="h6"
-              component="div"
+            {/* Theme-aware Logo */}
+            <Box
+              component="img"
+              src={themeColors.logo}
+              alt="Banner17"
               sx={{
-                fontSize: '1.5rem',
-                fontWeight: 700,
-                color: '#000000',
-                letterSpacing: '-0.5px',
+                height: { xs: 32, sm: 40 },
+                width: 'auto',
                 mr: 2,
+                transition: 'opacity 0.3s ease',
               }}
-            >
-              Banner17
-            </Typography>
+            />
             <Typography
               variant="body2"
               sx={{

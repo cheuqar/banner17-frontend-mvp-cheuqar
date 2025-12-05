@@ -13,6 +13,8 @@
     "test:coverage": "jest --coverage"
   },
   "dependencies": {
+    "@bugsnag/js": "^8.6.0",
+    "@bugsnag/plugin-react": "^8.6.0",
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
     "@heroicons/react": "^2.2.0",
@@ -43,6 +45,10 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.22.0",
+    "@babel/preset-react": "^7.22.0",
+    "@babel/preset-typescript": "^7.22.0",
+    "@bugsnag/source-maps": "^2.3.3",
     "@eslint/js": "^8.56.0",
     "@testing-library/jest-dom": "^5.16.5",
     "@testing-library/react": "^13.4.0",
@@ -52,20 +58,18 @@
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
+    "babel-jest": "^29.7.0",
+    "babel-plugin-transform-import-meta": "^2.2.1",
     "eslint": "^8.56.0",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.4",
     "globals": "^13.20.0",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
-    "babel-jest": "^29.7.0",
-    "@babel/preset-env": "^7.22.0",
-    "@babel/preset-react": "^7.22.0",
-    "@babel/preset-typescript": "^7.22.0",
-    "babel-plugin-transform-import-meta": "^2.2.1",
-    "identity-obj-proxy": "^3.0.0",
     "prettier": "^2.8.8",
     "typescript": "~5.3.3",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "vite-plugin-bugsnag": "^2.0.2"
   }
 }

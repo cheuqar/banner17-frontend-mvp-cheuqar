@@ -86,6 +86,7 @@ describe('FloatingResultsButton - Phase 2.17.3', () => {
         showSchoolsOnMap: false,
         showCatchmentRadius: false,
         selectiveSchoolFilter: false,
+        searchRadius: 3,
       },
       amenities: {
         isLoading: false,
@@ -99,6 +100,7 @@ describe('FloatingResultsButton - Phase 2.17.3', () => {
       },
       propertyPanelVisible: false,
       filtersOverlayVisible: false,
+      showSuburbBoundaries: false,
       ...initialState,
     };
 

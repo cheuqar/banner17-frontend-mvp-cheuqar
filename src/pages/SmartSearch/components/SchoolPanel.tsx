@@ -14,7 +14,7 @@
  * - Responsive design
  */
 
-import React, { useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -23,7 +23,10 @@ import {
   Button,
   Switch,
   FormControlLabel,
+  Tabs,
+  Tab,
 } from '@mui/material';
+import { Search as SearchIcon, School as SchoolIcon } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import {
@@ -33,7 +36,9 @@ import {
   setLoading,
   setError,
   clearError,
+  setSchoolPanelTab,
 } from '../../../store/slices/smartSearch/schoolPanelSlice';
+import { SelectedSchoolTab } from '../../../components/smartSearch/SelectedSchoolTab';
 import {
   setShowSchoolsOnMap,
   setShowCatchmentRadius,
@@ -84,6 +89,11 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
   const selectedSchools = useAppSelector(state => state.schoolPanel.selectedSchools);
   const loading = useAppSelector(state => state.schoolPanel.loading);
   const error = useAppSelector(state => state.schoolPanel.error);
+  // Phase 2.47: Get active tab with fallback for persisted state migration
+  const activeTab = useAppSelector(state => state.schoolPanel.activeTab) || 'search';
+
+  // Phase 2.46: Get search radius from Redux
+  const searchRadius = useAppSelector(state => state.smartSearch.schools.searchRadius);
 
   // Phase 2.12.1: New toggle controls for school panel visibility
   const showSchoolsOnMap = useAppSelector(selectShowSchoolsOnMap);
@@ -118,6 +128,12 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
 
   // Phase 2.20: Debounce school selection changes for auto-search
   const debouncedSelectedSchoolIds = useDebounce(selectedSchoolIds, 800);
+
+  // Phase 2.46 FIX: Track previous toggle state to prevent duplicate searches
+  // This ref helps distinguish between toggle changes vs school selection changes
+  // Only the first useEffect should trigger search when TOGGLE changes
+  // The second useEffect handles SCHOOL SELECTION changes (with debounce)
+  const prevShowCatchmentRadiusRef = useRef<boolean | null>(null);
 
   /**
    * Perform filtered search on filter changes
@@ -202,9 +218,27 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
    * Phase 2.14 FIX: Compute catchment union and trigger property search when toggle changes
    * Phase 2.17 FIX: Handle schools without catchment boundaries (use radius fallback)
    * Phase 2.17.1 FIX: Watch actual selected school IDs, not just length (map marker bug)
+   * Phase 2.46 FIX: Only trigger search when TOGGLE changes, not when schools change
+   *                 School selection changes are handled by the second useEffect (with debounce)
    * When schools are selected AND toggle is ON, must compute union BEFORE filtering properties
    */
   useEffect(() => {
+    // Phase 2.46 FIX: Check if this is a toggle change or school selection change
+    const toggleChanged = prevShowCatchmentRadiusRef.current !== null &&
+                          prevShowCatchmentRadiusRef.current !== showCatchmentRadius;
+    const isInitialRender = prevShowCatchmentRadiusRef.current === null;
+
+    // Update the ref for next comparison
+    prevShowCatchmentRadiusRef.current = showCatchmentRadius;
+
+    // Phase 2.46 FIX: Only handle toggle changes here, NOT school selection changes
+    // School selection changes are handled by the second useEffect (debouncedSelectedSchoolIds)
+    // This prevents duplicate API calls when selecting schools
+    if (!toggleChanged && !isInitialRender) {
+      console.log('[SchoolPanel] Toggle unchanged, skipping (school selection handled by debounced effect)');
+      return;
+    }
+
     const handleCatchmentToggleChange = async () => {
       if (selectedSchools.length > 0) {
         if (showCatchmentRadius) {
@@ -215,7 +249,8 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
             totalSelected: selectedSchools.length,
             selectedSchoolIds: selectedSchools.map(s => s.school_id),
             withBoundaries: schoolsWithBoundaries.length,
-            withoutBoundaries: selectedSchools.length - schoolsWithBoundaries.length
+            withoutBoundaries: selectedSchools.length - schoolsWithBoundaries.length,
+            toggleChanged
           });
 
           // Phase 2.28.7 FIX: Only update spatial filter if it actually changed
@@ -334,6 +369,7 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
   /**
    * Phase 2.20: Auto-search on school selection with 800ms debounce
    * Trigger property search when school selection changes (only if toggle is ON)
+   * Phase 2.46.2 FIX: Compute catchment union BEFORE searching for schools with catchment boundaries
    */
   useEffect(() => {
     const handleSchoolSelectionAutoSearch = async () => {
@@ -355,10 +391,20 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
         return;
       }
 
+      // Phase 2.46.2 FIX: Check if selected schools have catchment boundaries
+      // If they do, compute catchment union BEFORE calling performSearch()
+      // This fixes the bug where switching from non-catchment to catchment school
+      // used stale catchmentUnion data because the union wasn't recomputed
+      const schoolsWithBoundaries = selectedSchools.filter(s => s.has_catchment_boundary);
+      const hasSchoolsWithCatchment = schoolsWithBoundaries.length > 0;
+
       console.log('[SchoolPanel] Auto-search triggered after 800ms debounce:', {
         selectedSchoolCount: selectedSchools.length,
         schoolIds: selectedSchools.map(s => s.school_id),
-        schoolNames: selectedSchools.map(s => s.school_name)
+        schoolNames: selectedSchools.map(s => s.school_name),
+        withBoundaries: schoolsWithBoundaries.length,
+        withoutBoundaries: selectedSchools.length - schoolsWithBoundaries.length,
+        mode: hasSchoolsWithCatchment ? 'POLYGON' : 'RADIUS'
       });
 
       // Phase 2.28.7 FIX: Only update spatial filter if it actually changed
@@ -373,6 +419,22 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
         dispatch(setActiveSpatialFilter('schoolCatchment'));
       } else {
         console.log('[SchoolPanel] Auto-search: Spatial filter already schoolCatchment, skipping update');
+      }
+
+      // Phase 2.46.2 FIX: Compute catchment union for schools with boundaries BEFORE searching
+      // This ensures performSearch() has the correct catchmentUnion in Redux state
+      if (hasSchoolsWithCatchment) {
+        console.log('[SchoolPanel] Auto-search: Computing catchment union for', schoolsWithBoundaries.length, 'schools');
+        const unionResult = await dispatch(computeSchoolCatchmentUnion());
+
+        if (computeSchoolCatchmentUnion.rejected.match(unionResult)) {
+          console.error('[SchoolPanel] Auto-search: Failed to compute catchment union');
+          toast.error('Failed to compute school catchment area');
+          return;
+        }
+        console.log('[SchoolPanel] Auto-search: Catchment union computed successfully');
+      } else {
+        console.log('[SchoolPanel] Auto-search: No catchment boundaries, using radius mode');
       }
 
       // Trigger property search
@@ -470,166 +532,237 @@ export const SchoolPanel: React.FC<SchoolPanelProps> = ({ onCenterSchool }) => {
     return selectedSchools.length < MAX_SELECTED_SCHOOLS;
   }, [selectedSchools]);
 
+  /**
+   * Handle tab change
+   */
+  const handleTabChange = useCallback((_event: React.SyntheticEvent, newValue: 'search' | 'selected') => {
+    dispatch(setSchoolPanelTab(newValue));
+  }, [dispatch]);
+
+  /**
+   * Auto-switch to selected tab when school is selected
+   */
+  useEffect(() => {
+    if (selectedSchools.length > 0 && activeTab === 'search') {
+      dispatch(setSchoolPanelTab('selected'));
+    } else if (selectedSchools.length === 0 && activeTab === 'selected') {
+      dispatch(setSchoolPanelTab('search'));
+    }
+  }, [selectedSchools.length, activeTab, dispatch]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: themeColors.primaryLight, borderRight: `2px solid ${themeBorder}` }}>
-      {/* Filters Section */}
-      <SchoolFilters onAutocompleteSelect={handleAutocompleteSelect} />
+      {/* Phase 2.47: Tab Header */}
+      <Box sx={{ borderBottom: '1px solid #e0e0e0' }}>
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{
+            minHeight: 40,
+            '& .MuiTab-root': {
+              minHeight: 40,
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              textTransform: 'none',
+            },
+            '& .Mui-selected': {
+              color: themeColors.linkButtonActive,
+            },
+            '& .MuiTabs-indicator': {
+              bgcolor: themeColors.linkButtonActive,
+            },
+          }}
+        >
+          <Tab
+            value="search"
+            icon={<SearchIcon sx={{ fontSize: 16, mr: 0.5 }} />}
+            iconPosition="start"
+            label="Search"
+            sx={{ minWidth: 0 }}
+          />
+          <Tab
+            value="selected"
+            icon={<SchoolIcon sx={{ fontSize: 16, mr: 0.5 }} />}
+            iconPosition="start"
+            label="Selected"
+            disabled={selectedSchools.length === 0}
+            sx={{ minWidth: 0 }}
+          />
+        </Tabs>
+      </Box>
 
-      {/* Phase 2.12.1: Toggle Controls Section - Compact */}
-      <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid #e0e0e0', display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-        {/* Toggle 1: Show Schools on Map */}
-        {/* Phase 2.12.2: Updated label to clarify that it shows nearby schools in bounds */}
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showSchoolsOnMap}
-              onChange={(e) => dispatch(setShowSchoolsOnMap(e.target.checked))}
-              size="small"
-              title="Show all schools in current map view"
-            />
-          }
-          label={
-            <Typography variant="caption" sx={{ fontSize: '0.8rem' }}>
-              Show nearby schools
-            </Typography>
-          }
-          sx={{ margin: 0 }}
-        />
+      {/* Search Tab Content */}
+      {activeTab === 'search' && (
+        <>
+          {/* Filters Section */}
+          <SchoolFilters onAutocompleteSelect={handleAutocompleteSelect} />
 
-        {/* Toggle 2: Filter by School Areas */}
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showCatchmentRadius}
-              onChange={(e) => dispatch(setShowCatchmentRadius(e.target.checked))}
-              disabled={selectedSchools.length === 0 || searchPending}
-              size="small"
+          {/* Phase 2.12.1: Toggle Controls Section - Compact */}
+          <Box sx={{ px: 1.5, py: 0.75, borderBottom: '1px solid #e0e0e0', display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* Toggle 1: Show Schools on Map */}
+            {/* Phase 2.12.2: Updated label to clarify that it shows nearby schools in bounds */}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showSchoolsOnMap}
+                  onChange={(e) => dispatch(setShowSchoolsOnMap(e.target.checked))}
+                  size="small"
+                  title="Show all schools in current map view"
+                />
+              }
+              label={
+                <Typography variant="caption" sx={{ fontSize: '0.8rem' }}>
+                  Show nearby schools
+                </Typography>
+              }
+              sx={{ margin: 0 }}
             />
-          }
-          label={
-            <Box>
-              <Typography variant="caption" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
-                Filter by school areas
-              </Typography>
+
+            {/* Toggle 2: Filter by School Areas */}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showCatchmentRadius}
+                  onChange={(e) => dispatch(setShowCatchmentRadius(e.target.checked))}
+                  disabled={selectedSchools.length === 0 || searchPending}
+                  size="small"
+                />
+              }
+              label={
+                <Box>
+                  <Typography variant="caption" sx={{ fontSize: '0.8rem', fontWeight: 500 }}>
+                    Filter by school areas
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: '0.7rem',
+                      color: '#999',
+                      display: 'block',
+                      mt: 0.25
+                    }}
+                  >
+                    Shows properties within catchment boundaries
+                  </Typography>
+                </Box>
+              }
+              sx={{ margin: 0 }}
+            />
+          </Box>
+
+          {/* Results Section */}
+          <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+            {/* Loading State */}
+            {loading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+                <CircularProgress size={40} />
+              </Box>
+            )}
+
+            {/* Error State */}
+            {error && !loading && (
+              <Alert
+                severity="error"
+                onClose={() => dispatch(clearError())}
+                sx={{ mb: 2 }}
+              >
+                {error}
+              </Alert>
+            )}
+
+            {/* Empty State */}
+            {!loading && searchResults.length === 0 && (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="body2" sx={{ color: '#999' }}>
+                  {filters.schoolName || Object.values(filters).some(v => v)
+                    ? 'No schools found. Try adjusting your filters.'
+                    : 'Enter a school name to start searching.'}
+                </Typography>
+              </Box>
+            )}
+
+            {/* School Results List */}
+            {!loading && searchResults.length > 0 && (
+              <Box>
+                <Box sx={{ mb: 1.5 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 600, color: '#666' }}>
+                    {searchResults.length} School{searchResults.length !== 1 ? 's' : ''} Found
+                    {selectedSchools.length > 0 && ` • ${selectedSchools.length} Selected`}
+                  </Typography>
+                </Box>
+
+                {searchResults.map((school) => (
+                  <SchoolListItem
+                    key={school.school_id}
+                    school={school}
+                    isSelected={isSchoolSelected(school.school_id)}
+                    canSelect={canSelectMore || isSchoolSelected(school.school_id)}
+                    onSelect={handleSelectSchool}
+                    onDeselect={handleDeselectSchool}
+                    onCenter={handleCenterSchool}
+                  />
+                ))}
+              </Box>
+            )}
+          </Box>
+
+          {/* Selected Schools Summary Footer */}
+          {selectedSchools.length > 0 && (
+            <Box sx={{
+              px: 1.5,
+              py: 0.75,
+              bgcolor: '#f5f5f5',
+              borderTop: '1px solid #e0e0e0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
               <Typography
                 variant="caption"
                 sx={{
-                  fontSize: '0.7rem',
-                  color: '#999',
-                  display: 'block',
-                  mt: 0.25
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '70%',
                 }}
               >
-                Shows properties within catchment boundaries
+                Selected: {selectedSchools[0].school_name}
               </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  // Phase 2.16: Clear single selection
+                  dispatch(deselectSchool(selectedSchools[0].school_id));
+                }}
+                sx={{
+                  borderColor: '#999',
+                  color: '#666',
+                  fontSize: '0.7rem',
+                  padding: '2px 6px',
+                  minWidth: 'auto',
+                  '&:hover': {
+                    borderColor: '#0b2d2c',
+                    color: '#0b2d2c',
+                  },
+                }}
+              >
+                Clear
+              </Button>
             </Box>
-          }
-          sx={{ margin: 0 }}
+          )}
+        </>
+      )}
+
+      {/* Selected School Tab Content - Phase 2.47 */}
+      {activeTab === 'selected' && selectedSchools.length > 0 && (
+        <SelectedSchoolTab
+          school={selectedSchools[0]}
+          radiusKm={searchRadius}
         />
-      </Box>
-
-      {/* Results Section */}
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        {/* Loading State */}
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
-            <CircularProgress size={40} />
-          </Box>
-        )}
-
-        {/* Error State */}
-        {error && !loading && (
-          <Alert
-            severity="error"
-            onClose={() => dispatch(clearError())}
-            sx={{ mb: 2 }}
-          >
-            {error}
-          </Alert>
-        )}
-
-        {/* Empty State */}
-        {!loading && searchResults.length === 0 && (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography variant="body2" sx={{ color: '#999' }}>
-              {filters.schoolName || Object.values(filters).some(v => v)
-                ? 'No schools found. Try adjusting your filters.'
-                : 'Enter a school name to start searching.'}
-            </Typography>
-          </Box>
-        )}
-
-        {/* School Results List */}
-        {!loading && searchResults.length > 0 && (
-          <Box>
-            <Box sx={{ mb: 1.5 }}>
-              <Typography variant="caption" sx={{ fontWeight: 600, color: '#666' }}>
-                {searchResults.length} School{searchResults.length !== 1 ? 's' : ''} Found
-                {selectedSchools.length > 0 && ` • ${selectedSchools.length} Selected`}
-              </Typography>
-            </Box>
-
-            {searchResults.map((school) => (
-              <SchoolListItem
-                key={school.school_id}
-                school={school}
-                isSelected={isSchoolSelected(school.school_id)}
-                canSelect={canSelectMore || isSchoolSelected(school.school_id)}
-                onSelect={handleSelectSchool}
-                onDeselect={handleDeselectSchool}
-                onCenter={handleCenterSchool}
-              />
-            ))}
-          </Box>
-        )}
-      </Box>
-
-      {/* Selected Schools Summary Footer */}
-      {selectedSchools.length > 0 && (
-        <Box sx={{
-          px: 1.5,
-          py: 0.75,
-          bgcolor: '#f5f5f5',
-          borderTop: '1px solid #e0e0e0',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 600,
-              fontSize: '0.8rem',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '70%',
-            }}
-          >
-            Selected: {selectedSchools[0].school_name}
-          </Typography>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => {
-              // Phase 2.16: Clear single selection
-              dispatch(deselectSchool(selectedSchools[0].school_id));
-            }}
-            sx={{
-              borderColor: '#999',
-              color: '#666',
-              fontSize: '0.7rem',
-              padding: '2px 6px',
-              minWidth: 'auto',
-              '&:hover': {
-                borderColor: '#0b2d2c',
-                color: '#0b2d2c',
-              },
-            }}
-          >
-            Clear
-          </Button>
-        </Box>
       )}
     </Box>
   );

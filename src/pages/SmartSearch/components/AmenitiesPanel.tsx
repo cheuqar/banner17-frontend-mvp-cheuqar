@@ -33,9 +33,11 @@ import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import SchoolIcon from '@mui/icons-material/School';
+import ChildCareIcon from '@mui/icons-material/ChildCare';
 import AttractionsIcon from '@mui/icons-material/Attractions';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import SportsIcon from '@mui/icons-material/Sports';
+import TrainIcon from '@mui/icons-material/Train';
 import { toast } from 'react-toastify';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import {
@@ -66,9 +68,11 @@ const AMENITY_CATEGORIES = [
   { value: 'libraries', label: 'Libraries', icon: <LocalLibraryIcon sx={{ fontSize: '1rem' }} /> },
   { value: 'shopping', label: 'Shopping', icon: <ShoppingCartIcon sx={{ fontSize: '1rem' }} /> },
   { value: 'universities_tafe', label: 'Universities/TAFE', icon: <SchoolIcon sx={{ fontSize: '1rem' }} /> },
+  { value: 'child_care', label: 'Child Care', icon: <ChildCareIcon sx={{ fontSize: '1rem' }} /> },
   { value: 'tourist_attractions', label: 'Tourist Attractions', icon: <AttractionsIcon sx={{ fontSize: '1rem' }} /> },
   { value: 'beaches', label: 'Beaches', icon: <BeachAccessIcon sx={{ fontSize: '1rem' }} /> },
   { value: 'sports', label: 'Sports', icon: <SportsIcon sx={{ fontSize: '1rem' }} /> },
+  { value: 'transport_stations', label: 'Transport', icon: <TrainIcon sx={{ fontSize: '1rem' }} /> },
 ];
 
 // Phase 2.32.6: Removed RADIUS_OPTIONS - aligned with school markers bbox-only pattern

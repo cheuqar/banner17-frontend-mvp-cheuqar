@@ -1,34 +1,58 @@
 /**
  * School Marker Popup Component
  * Phase 2.23 - School Marker Popup Enhancements
+ * Phase 2.46 - Adjustable radius slider for non-catchment schools
  * =====================================================
  *
  * Reusable popup component displayed when school marker is clicked.
  * Provides school information and action buttons:
  * - Filter by School Area: Syncs with catchment radius toggle
  * - Search on MySchool: Opens MySchool portal with school name
+ * - Adjustable radius slider (1-8km) for schools without catchment boundaries
  *
  * Features:
  * - Style4-V2 design system (black/white/gray palette)
  * - Redux integration for state management
  * - Disabled state during search operations
  * - URL encoding for MySchool search
+ * - Debounced radius slider updates (300ms)
  */
 
-import React, { useCallback, useEffect } from 'react';
-import { Box, Typography, Button, Chip, Switch, FormControlLabel } from '@mui/material';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
+import { Box, Typography, Button, Chip, Switch, FormControlLabel, Slider } from '@mui/material';
 import {
   OpenInNew as OpenInNewIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
+import { debounce } from 'lodash';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import {
   setShowCatchmentRadius,
-  computeSchoolCatchmentUnion,
   setActiveSpatialFilter,
   performSearch,
   selectShowCatchmentRadius,
+  selectSchoolSearchRadius,
+  setSchoolSearchRadius,
 } from '../../../store/slices/smartSearchSlice';
+import { deselectSchool } from '../../../store/slices/smartSearch/schoolPanelSlice';
 import type { School } from '../../../types/smartSearch';
+
+// Radius slider constants
+const DEFAULT_RADIUS_KM = 3;
+const MIN_RADIUS_KM = 1;
+const MAX_RADIUS_KM = 8;
+const RADIUS_STEP_KM = 0.5;
+
+// Theme-A accent color
+const THEME_ACCENT = '#f0492e';
+
+// Slider marks for visual guidance
+const RADIUS_MARKS = [
+  { value: 1, label: '1km' },
+  { value: 3, label: '3km' },
+  { value: 5, label: '5km' },
+  { value: 8, label: '8km' },
+];
 
 interface SchoolMarkerPopupProps {
   /** School data to display */
@@ -46,40 +70,63 @@ export const SchoolMarkerPopup: React.FC<SchoolMarkerPopupProps> = ({
   // Get current state from Redux
   const showCatchmentRadius = useAppSelector(selectShowCatchmentRadius);
   const searchPending = useAppSelector((state) => state.smartSearch.searchPending);
+  const reduxSearchRadius = useAppSelector(selectSchoolSearchRadius);
+
+  // Local state for immediate slider feedback
+  const [localRadius, setLocalRadius] = useState(reduxSearchRadius || DEFAULT_RADIUS_KM);
+
+  // Sync local state with Redux when Redux changes externally
+  useEffect(() => {
+    setLocalRadius(reduxSearchRadius || DEFAULT_RADIUS_KM);
+  }, [reduxSearchRadius]);
+
+  // Debounced callback for Redux updates and search trigger (300ms delay)
+  const debouncedRadiusUpdate = useMemo(
+    () =>
+      debounce((newRadiusKm: number) => {
+        console.log(`[SchoolMarkerPopup] Debounced radius update: ${newRadiusKm}km`);
+        dispatch(setSchoolSearchRadius(newRadiusKm));
+        // Trigger search if catchment filter is active
+        if (showCatchmentRadius) {
+          dispatch(performSearch());
+        }
+      }, 300),
+    [dispatch, showCatchmentRadius]
+  );
+
+  // Handle slider change - update local state immediately, debounce Redux/API
+  const handleRadiusChange = useCallback((_event: Event, value: number | number[]) => {
+    const newRadius = typeof value === 'number' ? value : value[0];
+    setLocalRadius(newRadius);
+    debouncedRadiusUpdate(newRadius);
+  }, [debouncedRadiusUpdate]);
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      debouncedRadiusUpdate.cancel();
+    };
+  }, [debouncedRadiusUpdate]);
 
   /**
    * Phase 2.25 FIX: Auto-trigger search when school marker is clicked
-   * If "Filter by School Area" toggle is already ON, trigger search immediately
-   * This handles the case where user clicks a different school marker while filter is active
+   * REMOVED in Phase 2.46: This was causing duplicate API calls.
+   * SchoolPanel.tsx already handles school selection changes via its useEffect hooks:
+   * - First useEffect: handles toggle changes and filter updates
+   * - Second useEffect: handles school selection with 800ms debounce
+   *
+   * We only log for debugging purposes now.
    */
   useEffect(() => {
     if (isSelected && showCatchmentRadius) {
-      console.log('[SchoolMarkerPopup] School selected with catchment filter ON, triggering auto-search:', {
+      console.log('[SchoolMarkerPopup] School selected with catchment filter ON:', {
         schoolName: school.school_name,
         schoolId: school.school_id,
-        hasCatchmentBoundary: !!(school.catchment_area && school.catchment_area !== null)
+        hasCatchmentBoundary: !!(school.catchment_area && school.catchment_area !== null),
+        note: 'Search will be triggered by SchoolPanel.tsx useEffect'
       });
-
-      // Check if school has catchment boundaries
-      const hasCatchmentBoundary = school.catchment_area && school.catchment_area !== null;
-
-      if (hasCatchmentBoundary) {
-        // Polygon mode: School has official catchment boundaries
-        dispatch(computeSchoolCatchmentUnion()).then((result) => {
-          if (result.meta.requestStatus === 'fulfilled') {
-            console.log('[SchoolMarkerPopup] Catchment union computed, triggering search');
-            dispatch(setActiveSpatialFilter('schoolCatchment'));
-            dispatch(performSearch());
-          }
-        });
-      } else {
-        // Radius mode: School doesn't have boundaries, use 3km radius circle
-        console.log('[SchoolMarkerPopup] No catchment boundary, using radius mode');
-        dispatch(setActiveSpatialFilter('schoolCatchment'));
-        dispatch(performSearch());
-      }
     }
-  }, [isSelected, school.school_id, school.school_name, school.catchment_area, showCatchmentRadius, dispatch]);
+  }, [isSelected, school.school_id, school.school_name, school.catchment_area, showCatchmentRadius]);
 
   /**
    * Handle "Search on MySchool" button click
@@ -220,18 +267,84 @@ export const SchoolMarkerPopup: React.FC<SchoolMarkerPopupProps> = ({
         </Typography>
       )}
 
-      {/* Selected Status */}
+      {/* Radius Slider for non-catchment schools */}
+      {!hasCatchment && (
+        <Box sx={{ mt: 1.5, px: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '11px',
+              color: '#666666',
+              display: 'block',
+              mb: 0.5,
+            }}
+          >
+            Search radius: <strong>{localRadius}km</strong>
+          </Typography>
+          <Slider
+            value={localRadius}
+            onChange={handleRadiusChange}
+            min={MIN_RADIUS_KM}
+            max={MAX_RADIUS_KM}
+            step={RADIUS_STEP_KM}
+            marks={RADIUS_MARKS}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(value) => `${value}km`}
+            disabled={searchPending}
+            sx={{
+              color: THEME_ACCENT,
+              '& .MuiSlider-thumb': {
+                width: 16,
+                height: 16,
+                '&:hover, &.Mui-focusVisible': {
+                  boxShadow: `0 0 0 8px ${THEME_ACCENT}33`,
+                },
+              },
+              '& .MuiSlider-markLabel': {
+                fontSize: '9px',
+                color: '#999999',
+              },
+              '& .MuiSlider-valueLabel': {
+                backgroundColor: THEME_ACCENT,
+                fontSize: '11px',
+              },
+              '& .MuiSlider-rail': {
+                opacity: 0.3,
+              },
+            }}
+          />
+        </Box>
+      )}
+
+      {/* Selected Status - Clickable to deselect */}
       {isSelected && (
         <Chip
           label="Selected"
           size="small"
+          deleteIcon={<CloseIcon sx={{ fontSize: '14px !important' }} />}
+          onDelete={() => {
+            console.log('[SchoolMarkerPopup] Deselecting school via chip click:', school.school_name);
+            dispatch(deselectSchool(school.school_id));
+            // Also turn off the filter if it was active
+            if (showCatchmentRadius) {
+              dispatch(setShowCatchmentRadius(false));
+              dispatch(setActiveSpatialFilter('none'));
+              dispatch(performSearch());
+            }
+          }}
           sx={{
-            height: 20,
+            height: 24,
             fontSize: '11px',
             bgcolor: '#0b2d2c',
             color: '#FFFFFF',
             fontWeight: 600,
             mt: 1,
+            '& .MuiChip-deleteIcon': {
+              color: '#FFFFFF',
+              '&:hover': {
+                color: '#FF6B6B',
+              },
+            },
           }}
         />
       )}
@@ -251,34 +364,15 @@ export const SchoolMarkerPopup: React.FC<SchoolMarkerPopupProps> = ({
             <Switch
               checked={showCatchmentRadius}
               onChange={(e) => {
+                // Phase 2.46 FIX: Only dispatch toggle state change
+                // SchoolPanel.tsx useEffect handles all search triggering to avoid duplicate API calls
+                // Previously this handler was duplicating performSearch() calls that SchoolPanel already handles
                 dispatch(setShowCatchmentRadius(e.target.checked));
 
-                // Phase 2.25.2 FIX: Handle both ON and OFF toggle cases
                 if (e.target.checked) {
-                  // TURN ON: Filter by School Area
-                  console.log('[SchoolMarkerPopup] Filter by School Area turned ON');
-                  const hasCatchmentBoundary = school.catchment_area && school.catchment_area !== null;
-
-                  if (hasCatchmentBoundary) {
-                    // Polygon mode: School has official catchment boundaries
-                    // Compute the union and set spatial filter
-                    dispatch(computeSchoolCatchmentUnion()).then((result) => {
-                      if (result.meta.requestStatus === 'fulfilled') {
-                        dispatch(setActiveSpatialFilter('schoolCatchment'));
-                        dispatch(performSearch());
-                      }
-                    });
-                  } else {
-                    // Radius mode: School doesn't have boundaries, use 3km radius circle
-                    // Directly set spatial filter (no union computation needed)
-                    dispatch(setActiveSpatialFilter('schoolCatchment'));
-                    dispatch(performSearch());
-                  }
+                  console.log('[SchoolMarkerPopup] Filter by School Area turned ON - SchoolPanel will trigger search');
                 } else {
-                  // TURN OFF: Reset to bbox filtering (map-oriented search)
-                  console.log('[SchoolMarkerPopup] Filter by School Area turned OFF - switching back to bbox filtering');
-                  dispatch(setActiveSpatialFilter('none'));
-                  dispatch(performSearch());
+                  console.log('[SchoolMarkerPopup] Filter by School Area turned OFF - SchoolPanel will trigger search');
                 }
               }}
               disabled={searchPending}

@@ -21,7 +21,11 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Menu,
+  MenuItem,
+  Typography,
 } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useAppDispatch, useAppSelector } from '../../../../store';
 import { setTransactionType } from '../../../../store/slices/searchFilters';
 import { togglePanel } from '../../../../store/slices/smartSearchSlice';
@@ -57,6 +61,34 @@ const TopNavigation: React.FC = () => {
 
   // User Profile Panel state
   const [profilePanelOpen, setProfilePanelOpen] = useState(false);
+
+  // Country selector state
+  const [countryAnchorEl, setCountryAnchorEl] = useState<null | HTMLElement>(null);
+  const countryMenuOpen = Boolean(countryAnchorEl);
+  const [selectedCountry] = useState('AU'); // Currently only Australia is available
+
+  // Country options
+  const countries = [
+    { code: 'AU', name: 'Australia', flag: '🇦🇺', available: true },
+    { code: 'NZ', name: 'New Zealand', flag: '🇳🇿', available: false },
+    { code: 'UK', name: 'United Kingdom', flag: '🇬🇧', available: false },
+  ];
+
+  const handleCountryMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setCountryAnchorEl(event.currentTarget);
+  };
+
+  const handleCountryMenuClose = () => {
+    setCountryAnchorEl(null);
+  };
+
+  const handleCountrySelect = (countryCode: string, available: boolean) => {
+    if (!available) {
+      setComingSoonMessage(`${countries.find(c => c.code === countryCode)?.name} property search is coming soon!`);
+      setComingSoonOpen(true);
+    }
+    handleCountryMenuClose();
+  };
 
   /**
    * Handle coming soon click
@@ -182,34 +214,160 @@ const TopNavigation: React.FC = () => {
           backgroundColor: themeColors.primaryLight, // Theme background color
         }}
       >
-        {/* Left: Brand */}
-        <Link
-          href="/"
-          sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            height: '100%',
-            textDecoration: 'none',
-            cursor: 'pointer',
-            transition: 'opacity 0.3s ease',
-            '&:hover': {
-              opacity: 0.8,
-            },
-          }}
-          aria-label="Banner17 home page"
-        >
-          <img
-            src={themeColors.logo}
-            alt="Banner17"
-            style={{
+        {/* Left: Brand + Country Selector */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Link
+            href="/"
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
               height: '100%',
-              width: 'auto',
-              display: 'block',
-              margin: '8px 0', // 8px top and bottom padding
-              boxSizing: 'border-box',
+              textDecoration: 'none',
+              cursor: 'pointer',
+              transition: 'opacity 0.3s ease',
+              '&:hover': {
+                opacity: 0.8,
+              },
             }}
-          />
-        </Link>
+            aria-label="Banner17 home page"
+          >
+            <img
+              src={themeColors.logo}
+              alt="Banner17"
+              style={{
+                height: '44px',
+                width: 'auto',
+                display: 'block',
+              }}
+            />
+          </Link>
+
+          {/* Country Selector */}
+          <Button
+            onClick={handleCountryMenuOpen}
+            aria-controls={countryMenuOpen ? 'country-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={countryMenuOpen ? 'true' : undefined}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              px: 1.5,
+              py: 0.75,
+              borderRadius: '20px',
+              border: `1px solid ${themeColors.primaryDark}20`,
+              backgroundColor: 'transparent',
+              color: themeColors.primaryDark,
+              fontSize: '14px',
+              fontWeight: 600,
+              textTransform: 'none',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                backgroundColor: `${themeColors.primaryDark}08`,
+                borderColor: `${themeColors.primaryDark}40`,
+              },
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>
+              {countries.find(c => c.code === selectedCountry)?.flag}
+            </span>
+            <Typography
+              component="span"
+              sx={{
+                fontSize: '14px',
+                fontWeight: 600,
+                display: { xs: 'none', sm: 'inline' },
+              }}
+            >
+              {countries.find(c => c.code === selectedCountry)?.name}
+            </Typography>
+            <KeyboardArrowDownIcon
+              sx={{
+                fontSize: '18px',
+                transition: 'transform 0.2s ease',
+                transform: countryMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+              }}
+            />
+          </Button>
+          <Menu
+            id="country-menu"
+            anchorEl={countryAnchorEl}
+            open={countryMenuOpen}
+            onClose={handleCountryMenuClose}
+            MenuListProps={{
+              'aria-labelledby': 'country-button',
+            }}
+            PaperProps={{
+              sx: {
+                mt: 1,
+                borderRadius: '12px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                minWidth: '200px',
+              },
+            }}
+          >
+            {countries.map((country) => (
+              <MenuItem
+                key={country.code}
+                onClick={() => handleCountrySelect(country.code, country.available)}
+                selected={country.code === selectedCountry}
+                sx={{
+                  py: 1.5,
+                  px: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  opacity: country.available ? 1 : 0.5,
+                  '&:hover': {
+                    backgroundColor: country.available
+                      ? `${themeColors.linkButtonActive}10`
+                      : 'rgba(0,0,0,0.04)',
+                  },
+                  '&.Mui-selected': {
+                    backgroundColor: `${themeColors.linkButtonActive}15`,
+                    '&:hover': {
+                      backgroundColor: `${themeColors.linkButtonActive}20`,
+                    },
+                  },
+                }}
+              >
+                <span style={{ fontSize: '20px' }}>{country.flag}</span>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    sx={{
+                      fontSize: '14px',
+                      fontWeight: 600,
+                      color: country.available ? themeColors.primaryDark : '#999999',
+                    }}
+                  >
+                    {country.name}
+                  </Typography>
+                  {!country.available && (
+                    <Typography
+                      sx={{
+                        fontSize: '11px',
+                        color: '#999999',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      Coming Soon
+                    </Typography>
+                  )}
+                </Box>
+                {country.code === selectedCountry && (
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      backgroundColor: themeColors.linkButtonActive,
+                    }}
+                  />
+                )}
+              </MenuItem>
+            ))}
+          </Menu>
+        </Box>
 
         {/* Center/Right: Navigation Items */}
         <Box

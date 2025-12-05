@@ -96,6 +96,7 @@ const getDefaultState = (): SmartSearchState => ({
     showSchoolsOnMap: true,
     showCatchmentRadius: false,
     selectiveSchoolFilter: false,
+    searchRadius: 3,
   },
   amenities: {
     isLoading: false,
@@ -126,6 +127,7 @@ const getDefaultState = (): SmartSearchState => ({
   searchPending: false,
   propertyPanelVisible: true,
   filtersOverlayVisible: false,
+  showSuburbBoundaries: false,
 });
 
 describe('FilterDialog - Phase 2.18.1', () => {

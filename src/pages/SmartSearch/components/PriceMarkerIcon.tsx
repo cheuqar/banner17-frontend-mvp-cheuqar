@@ -1,132 +1,155 @@
 import L from 'leaflet';
-import styles from '../../../components/map/MapMarker.module.css';
 
-interface PriceMarkerIconOptions {
-  price: number;
+interface PropertyMarkerIconOptions {
   selected?: boolean;
-  themeColor?: string; // Theme primary dark color for border and text
-}
-
-interface TextMarkerIconOptions {
-  priceDisplay?: string;
-  selected?: boolean;
-  themeColor?: string; // Theme primary dark color for border and text
+  themeColor?: string; // Theme primary dark color for background
 }
 
 /**
- * Format price to short readable format (K for thousands, M for millions)
+ * Create a custom Leaflet DivIcon for single property markers
+ *
+ * Uses teardrop/balloon location pin style with:
+ * - Dark background (theme color)
+ * - White text showing "1"
+ * - Cohesive teardrop shape (no separate pointer)
+ * - Consistent with cluster marker styling
  */
-function formatPriceShort(price: number): string {
-  if (price >= 1000000) {
-    const millions = price / 1000000;
-    return `$${millions.toFixed(1)}M`;
-  } else if (price >= 1000) {
-    const thousands = price / 1000;
-    return `$${thousands.toFixed(0)}K`;
+export const createPropertyMarkerIcon = ({
+  selected = false,
+  themeColor = '#0b2d2c' // Default to Theme-A primary dark
+}: PropertyMarkerIconOptions): L.DivIcon => {
+  const width = selected ? 32 : 28;
+  const height = selected ? 42 : 36;
+  const fontSize = selected ? '13px' : '12px';
+
+  // SVG teardrop/balloon pin shape
+  const html = `
+    <div class="property-location-marker ${selected ? 'selected' : ''}" style="
+      cursor: pointer;
+      transition: transform 200ms ease;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    ">
+      <svg width="${width}" height="${height}" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 0C6.268 0 0 6.268 0 14c0 7.732 14 22 14 22s14-14.268 14-22C28 6.268 21.732 0 14 0z" fill="${themeColor}"/>
+        <text x="14" y="17" text-anchor="middle" fill="white" font-family="Inter, -apple-system, sans-serif" font-size="${fontSize}" font-weight="bold">1</text>
+      </svg>
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: 'custom-property-marker',
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height],
+    popupAnchor: [0, -height]
+  });
+};
+
+/**
+ * Create cluster icon with location pin style
+ *
+ * Uses consistent styling with single property markers:
+ * - Dark background (theme color)
+ * - White text showing count
+ * - Teardrop/balloon shape (same as single property marker)
+ * - FIXED SIZE: All clusters use same size as single property marker
+ */
+export const createPropertyClusterIcon = (themeColor: string = '#0b2d2c') => (cluster: any): L.DivIcon => {
+  const count = cluster.getChildCount();
+
+  // FIXED SIZE: Use same dimensions as single property marker (non-selected)
+  // This ensures all cluster markers have consistent size regardless of count
+  const width = 28;
+  const height = 36;
+
+  // Adjust font size based on digit count to fit within fixed marker size
+  let fontSize: string;
+  if (count < 10) {
+    fontSize = '12px';
+  } else if (count < 100) {
+    fontSize = '10px';
+  } else if (count < 1000) {
+    fontSize = '8px';
   } else {
-    return `$${price}`;
-  }
-}
-
-/**
- * Format text marker label for properties without price
- *
- * Task 2.33.1: Text Marker Formatting Logic
- * - Extracts price_display field (e.g., "Contact Agent", "Price on Request")
- * - Fallback to "Contact Agent" if null/empty
- * - Truncate to max 80 characters for display
- */
-function formatTextMarkerLabel(priceDisplay?: string): string {
-  const defaultLabel = "Contact Agent";
-
-  if (!priceDisplay || priceDisplay.trim() === '') {
-    return defaultLabel;
+    fontSize = '7px';
   }
 
-  const trimmedLabel = priceDisplay.trim();
-
-  // Truncate to 80 characters to fit within 3-line max constraint
-  if (trimmedLabel.length > 80) {
-    return trimmedLabel.substring(0, 77) + '...';
-  }
-
-  return trimmedLabel;
-}
-
-/**
- * Create a custom Leaflet DivIcon with price label for property markers
- *
- * Smart Search UI Redesign (Feature 001) - Phase 5 User Story 3
- * Theme-aware marker styling:
- * - Uses theme primary dark color for border and text
- * - White background
- * - Hover inverts to theme color background with white text
- * - Selected state with thicker border
- *
- * Features:
- * - Price formatted as $1.2M or $850K
- * - Pointer/pin below label
- * - Selected state with inverted colors and thicker border
- * - Smooth hover scale and color inversion animations
- */
-export const createPriceMarkerIcon = ({
-  price,
-  selected = false,
-  themeColor = '#0b2d2c' // Default to Theme-A primary dark
-}: PriceMarkerIconOptions): L.DivIcon => {
-  const formattedPrice = formatPriceShort(price);
-
+  // SVG teardrop/balloon pin shape - same style as single property marker
   const html = `
-    <div class="${styles.priceMarker} ${selected ? styles.selected : ''}" style="--theme-color: ${themeColor};">
-      <div class="${styles.priceLabel}" style="border-color: ${themeColor}; color: ${themeColor};">${formattedPrice}</div>
-      <div class="${styles.pricePointer}"></div>
+    <div class="property-cluster-marker" style="
+      cursor: pointer;
+      transition: transform 200ms ease;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    ">
+      <svg width="${width}" height="${height}" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 0C6.268 0 0 6.268 0 14c0 7.732 14 22 14 22s14-14.268 14-22C28 6.268 21.732 0 14 0z" fill="${themeColor}"/>
+        <text x="14" y="17" text-anchor="middle" fill="white" font-family="Inter, -apple-system, sans-serif" font-size="${fontSize}" font-weight="bold">${count}</text>
+      </svg>
     </div>
   `;
 
   return L.divIcon({
     html,
-    className: styles.customPriceMarker,
-    iconSize: [80, 40],
-    iconAnchor: [40, 40],
-    popupAnchor: [0, -40]
+    className: 'custom-property-cluster',
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height],
+    popupAnchor: [0, -height]
   });
 };
 
 /**
- * Create a custom Leaflet DivIcon with text label for no-price properties
+ * Shared teardrop cluster icon utility
  *
- * Task 2.33.3: Text Marker Icon Implementation
- * Theme-aware marker styling:
- * - Uses theme primary dark color for border and text
- * - White background
- * - Hover inverts to theme color background with white text
- * - Selected state with thicker border
+ * Creates a teardrop/balloon style cluster marker that can be used by
+ * properties, schools, amenities, or any future layer types.
  *
- * Features:
- * - Text formatted via formatTextMarkerLabel()
- * - Pointer/pin below label
- * - Selected state with inverted colors and thicker border
- * - Smooth hover scale and color inversion animations
+ * @param count - Number to display in the marker
+ * @param color - Background color of the marker
+ * @param className - CSS class name for the marker (for styling hooks)
  */
-export const createTextMarkerIcon = ({
-  priceDisplay = "Contact Agent",
-  selected = false,
-  themeColor = '#0b2d2c' // Default to Theme-A primary dark
-}: TextMarkerIconOptions): L.DivIcon => {
-  const formattedLabel = formatTextMarkerLabel(priceDisplay);
+export const createTeardropClusterIcon = (
+  count: number,
+  color: string,
+  className: string = 'teardrop-cluster'
+): L.DivIcon => {
+  // FIXED SIZE: 28x36px for all cluster markers (matches property markers)
+  const width = 28;
+  const height = 36;
+
+  // Dynamic font size based on digit count
+  let fontSize: string;
+  if (count < 10) {
+    fontSize = '12px';
+  } else if (count < 100) {
+    fontSize = '10px';
+  } else if (count < 1000) {
+    fontSize = '8px';
+  } else {
+    fontSize = '7px';
+  }
 
   const html = `
-    <div class="${styles.textMarker} ${selected ? styles.selected : ''}" style="--theme-color: ${themeColor};">
-      <div class="${styles.textMarkerLabel}" style="border-color: ${themeColor}; color: ${themeColor};">${formattedLabel}</div>
-      <div class="${styles.pricePointer}"></div>
+    <div class="${className}" style="
+      cursor: pointer;
+      transition: transform 200ms ease;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    ">
+      <svg width="${width}" height="${height}" viewBox="0 0 28 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M14 0C6.268 0 0 6.268 0 14c0 7.732 14 22 14 22s14-14.268 14-22C28 6.268 21.732 0 14 0z" fill="${color}"/>
+        <text x="14" y="17" text-anchor="middle" fill="white" font-family="Inter, -apple-system, sans-serif" font-size="${fontSize}" font-weight="bold">${count}</text>
+      </svg>
     </div>
   `;
 
   return L.divIcon({
     html,
-    className: styles.customPriceMarker,
-    iconSize: [80, 50], // Taller to accommodate 3 lines of text
-    iconAnchor: [40, 50],
-    popupAnchor: [0, -50]
+    className: `custom-${className}`,
+    iconSize: [width, height],
+    iconAnchor: [width / 2, height],
+    popupAnchor: [0, -height]
   });
 };
+
+// Legacy exports for backward compatibility (deprecated)
+export const createPriceMarkerIcon = createPropertyMarkerIcon;
+export const createTextMarkerIcon = createPropertyMarkerIcon;

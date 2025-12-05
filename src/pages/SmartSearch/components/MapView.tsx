@@ -10,7 +10,7 @@ import { toast } from 'react-toastify';
 import type { RootState } from '../../../store';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import type { BaseProperty } from '../../../types/property-enhanced';
-import { setMapBounds, setManualMapMove, searchByBounds, loadMoreProperties, setMapPosition, setDrawMode, clearDrawnPolygons, addDrawnPolygon, computeDrawnPolygonUnion, performSearch, startAutoSearchCountdown, cancelAutoSearchCountdown, setShowCatchmentRadius, setActiveSpatialFilter, selectShowCatchmentRadius, clearMapCenter } from '../../../store/slices/smartSearchSlice';
+import { setMapBounds, setManualMapMove, searchByBounds, loadMoreProperties, setMapPosition, setDrawMode, clearDrawnPolygons, addDrawnPolygon, computeDrawnPolygonUnion, performSearch, startAutoSearchCountdown, cancelAutoSearchCountdown, setShowCatchmentRadius, setActiveSpatialFilter, selectShowCatchmentRadius, clearMapCenter, setShowSuburbBoundaries, selectShowSuburbBoundaries } from '../../../store/slices/smartSearchSlice';
 // Phase 2.12.2: Import map bounds action for bbox schools tracking
 import { setMapBounds as setMapBoundsForBbox } from '../../../store/slices/smartSearch/mapBoundsSlice';
 import type { BBoxBounds } from '../../../store/slices/smartSearchSlice';
@@ -19,8 +19,10 @@ import BottomRightControls from './BottomRightControls';
 import ActiveSpatialFilterBanner from './ActiveSpatialFilterBanner';
 import ErrorBoundary from '../../../components/ErrorBoundary';
 import { PropertyMarkerPopup } from './PropertyMarkerPopup';
-import { createPriceMarkerIcon, createTextMarkerIcon } from './PriceMarkerIcon';
+import { createPropertyMarkerIcon, createPropertyClusterIcon } from './PriceMarkerIcon';
 import PropertyDetailDialogEnhanced from '../../../components/property/PropertyDetailDialogEnhanced';
+// NEW: Phase 2.40 - Cluster popup for same-coordinate properties
+import { ClusterPropertyListPopup, type ClusterProperty } from './ClusterPropertyListPopup';
 import { MapStatusBar } from './MapStatusBar';
 // NEW: Phase 2.10.7.4 - School marker layer
 import SchoolMarkerLayer from './SchoolMarkerLayer';
@@ -37,12 +39,14 @@ import { useBboxSchools } from '../../../hooks/useBboxSchools';
 import { selectMapBounds } from '../../../store/slices/smartSearch/mapBoundsSlice';
 // NEW: Phase 2.10.7.6 - Catchment visualization layer
 import CatchmentLayer from './CatchmentLayer';
-// NEW: Phase 2.10.7.7 - School legend component
-import SchoolLegend from './SchoolLegend';
+// NEW: Phase 2.45 - Map layer legend component (replaces SchoolLegend)
+import MapLayerLegend from './MapLayerLegend';
 // NEW: Phase 2.17.5 - Floating map controls wrapper
 import FloatingMapControls from './FloatingMapControls';
 // NEW: Phase 2.22 - Search progress indicator
 import SearchProgressIndicator from './SearchProgressIndicator';
+// NEW: Phase 2.38 - Suburb Boundaries Layer
+import SuburbBoundaryLayer from './SuburbBoundaryLayer';
 // Theme colors for dynamic marker styling
 import { selectThemeColors } from '../../../store/slices/themeSlice';
 // Phase 2.33: Map tile style management
@@ -113,52 +117,8 @@ const schoolIcon = L.divIcon({
     popupAnchor: [0, -14]
 });
 
-// Phase 2.29: Custom cluster icon creation function - Theme-aware styling
-// Accepts themeColor parameter for dynamic theme support
-const createClusterIcon = (themeColor: string = '#0b2d2c') => (cluster: any) => {
-    const count = cluster.getChildCount();
-
-    // Phase 2.29: Define size based on cluster size
-    let size: number;
-    let fontSize: string;
-
-    if (count < 10) {
-        size = 40;
-        fontSize = '14px';
-    } else if (count < 50) {
-        size = 50;
-        fontSize = '15px';
-    } else if (count < 100) {
-        size = 56;
-        fontSize = '16px';
-    } else {
-        size = 64;
-        fontSize = '17px';
-    }
-
-    return L.divIcon({
-        html: `
-            <div style="
-                background-color: ${themeColor}; /* Dynamic theme color background */
-                border: 3px solid white;
-                border-radius: 50%;
-                width: ${size}px;
-                height: ${size}px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                font-weight: bold;
-                color: white;
-                font-size: ${fontSize};
-            ">
-                ${count}
-            </div>
-        `,
-        className: 'custom-cluster-icon',
-        iconSize: L.point(size, size, true)
-    });
-};
+// Phase 2.29: Custom cluster icon is now imported from PriceMarkerIcon.tsx
+// Uses createPropertyClusterIcon with location pin style (dark bg, white text, pointer)
 
 // Phase 2.9.1: Helper function to calculate dynamic cluster radius based on zoom level
 const getClusterRadius = (zoom: number): number => {
@@ -698,6 +658,8 @@ const MapView: React.FC<MapViewProps> = ({
     const showCatchmentRadius = useAppSelector(selectShowCatchmentRadius);
     // NEW: Phase 2.17.5 - Property panel visibility for map resize
     const propertyPanelVisible = useAppSelector((state: RootState) => state.smartSearch.propertyPanelVisible);
+    // NEW: Phase 2.38 - Suburb boundaries visibility toggle
+    const showSuburbBoundaries = useAppSelector(selectShowSuburbBoundaries);
 
     // Phase 2.12.2: Get map bounds and call useBboxSchools hook
     const mapBoundsFromRedux = useAppSelector(selectMapBounds);
@@ -719,6 +681,15 @@ const MapView: React.FC<MapViewProps> = ({
     // NEW: Property detail dialog state (Sprint 2 - Phase 2.5.11)
     const [selectedProperty, setSelectedProperty] = useState<BaseProperty | null>(null);
     const [propertyDetailOpen, setPropertyDetailOpen] = useState(false);
+
+    // NEW: Phase 2.40 - Cluster popup state for same-coordinate properties
+    const [clusterPopupData, setClusterPopupData] = useState<{
+        position: [number, number];
+        properties: ClusterProperty[];
+    } | null>(null);
+
+    // NEW: Phase 2.40 - Ref for MarkerClusterGroup to attach event listeners
+    const clusterGroupRef = useRef<any>(null);
 
     // Filter properties that have valid coordinates
     const validProperties = properties.filter(
@@ -849,6 +820,11 @@ const MapView: React.FC<MapViewProps> = ({
         toast.info('Drawn area filter cleared');
     };
 
+    // NEW: Phase 2.38 - Suburb boundaries toggle handler
+    const handleToggleSuburbBoundaries = () => {
+        dispatch(setShowSuburbBoundaries(!showSuburbBoundaries));
+    };
+
     // NEW: Drawing event handlers (Phase 2.7)
     const handleAddPolygon = async (geoJSON: any) => {
         // Add polygon to Redux
@@ -874,6 +850,103 @@ const MapView: React.FC<MapViewProps> = ({
         dispatch(setDrawMode(false));
         console.log('[MapView] Drawing stopped');
     };
+
+    // NEW: Phase 2.40 - Handle property selection from cluster popup
+    const handleClusterPropertySelect = (property: BaseProperty) => {
+        // Open property detail page in new window (same as PropertyMarkerPopup)
+        window.open(`/property/detail/${property.id}`, '_blank', 'noopener,noreferrer');
+        // Close the cluster popup
+        setClusterPopupData(null);
+    };
+
+    // NEW: Phase 2.40 - Attach cluster click event listener via useEffect
+    // We disabled default zoom/spiderfy and handle all cluster clicks manually
+    useEffect(() => {
+        const clusterGroup = clusterGroupRef.current;
+        if (!clusterGroup) return;
+
+        const handleClusterClick = (e: any) => {
+            try {
+                const cluster = e.layer;
+                if (!cluster) return;
+
+                const childMarkers = cluster.getAllChildMarkers();
+                if (!childMarkers || childMarkers.length <= 1) return;
+
+                // Check if all markers are at the exact same coordinate
+                const firstPos = childMarkers[0]?.getLatLng();
+                if (!firstPos) return;
+
+                const allSameCoordinate = childMarkers.every((marker: any) => {
+                    const pos = marker?.getLatLng();
+                    if (!pos) return false;
+                    return pos.lat === firstPos.lat && pos.lng === firstPos.lng;
+                });
+
+                if (allSameCoordinate) {
+                    // SAME COORDINATES: Show popup with property list
+                    const propertiesAtCoord = validProperties.filter(
+                        (p: BaseProperty) => p.latitude === firstPos.lat && p.longitude === firstPos.lng
+                    );
+
+                    // Filter to only include properties with valid id and map to ClusterProperty format
+                    const clusterProperties: ClusterProperty[] = propertiesAtCoord
+                        .filter((p): p is BaseProperty & { id: string } => typeof p.id === 'string')
+                        .map(p => ({
+                            id: p.id,
+                            address: p.address || '',
+                            suburb: p.suburb,
+                            state: p.state,
+                            postcode: p.postcode,
+                            price: typeof p.price === 'number' ? p.price : undefined,
+                            bedrooms: p.bedrooms,
+                            bathrooms: p.bathrooms,
+                            car_spaces: p.car_spaces,
+                            // Convert images to string[] - extract url from PropertyImage objects
+                            images: p.images?.map(img => typeof img === 'string' ? img : img.url),
+                            primary_image: p.primary_image,
+                        }));
+
+                    if (clusterProperties.length > 0) {
+                        console.log('[MapView] Same-coordinate cluster clicked:', clusterProperties.length, 'properties');
+
+                        // Show custom popup
+                        setClusterPopupData({
+                            position: [firstPos.lat, firstPos.lng],
+                            properties: clusterProperties
+                        });
+                    }
+                } else {
+                    // DIFFERENT COORDINATES: Zoom to bounds (default behavior)
+                    console.log('[MapView] Different-coordinate cluster clicked, zooming to bounds');
+
+                    // Use setTimeout to avoid race condition with React re-renders
+                    // This allows the current event cycle to complete before triggering zoom
+                    setTimeout(() => {
+                        try {
+                            if (cluster && cluster.zoomToBounds) {
+                                cluster.zoomToBounds({ padding: [20, 20] });
+                            }
+                        } catch (zoomError) {
+                            console.warn('[MapView] Error during cluster zoom:', zoomError);
+                        }
+                    }, 0);
+                }
+            } catch (error) {
+                console.warn('[MapView] Error handling cluster click:', error);
+            }
+        };
+
+        // Attach event listener for cluster click
+        clusterGroup.on('clusterclick', handleClusterClick);
+
+        // Cleanup
+        return () => {
+            if (clusterGroup) {
+                clusterGroup.off('clusterclick', handleClusterClick);
+            }
+        };
+    }, [validProperties]);
 
     // NEW: Use persisted center/zoom if available (Phase 2.5.7)
     const effectiveCenter: [number, number] = persistedMapCenter
@@ -983,7 +1056,7 @@ const MapView: React.FC<MapViewProps> = ({
                 remainingCount={remainingCount}
             />
 
-            {/* NEW: Bottom Right Controls - Zoom + Draw (Phase 2.7) */}
+            {/* NEW: Bottom Right Controls - Zoom + Draw (Phase 2.7) + Suburb Boundaries (Phase 2.38) */}
             <BottomRightControls
                 onZoomIn={handleZoomIn}
                 onZoomOut={handleZoomOut}
@@ -991,6 +1064,9 @@ const MapView: React.FC<MapViewProps> = ({
                 onToggleDrawMode={handleToggleDrawMode}
                 hasDrawings={drawnPolygons.length > 0}
                 onClearDrawings={handleClearDrawings}
+                showSuburbBoundaries={showSuburbBoundaries}
+                onToggleSuburbBoundaries={handleToggleSuburbBoundaries}
+                currentZoomLevel={currentZoomLevel}
             />
 
             <ErrorBoundary fallbackMessage="Map temporarily unavailable">
@@ -1013,6 +1089,9 @@ const MapView: React.FC<MapViewProps> = ({
                         attribution={tileConfig.attribution}
                         maxZoom={tileConfig.maxZoom}
                     />
+
+                    {/* NEW: Phase 2.38 - Suburb Boundaries Layer (rendered below all other layers) */}
+                    <SuburbBoundaryLayer mapBounds={mapBounds} zoomLevel={currentZoomLevel} />
 
                     {/* NEW: Phase 2.10.7.5 - Map ref provider for school centering */}
                     <MapRefProvider mapRef={mapRef} />
@@ -1125,28 +1204,22 @@ const MapView: React.FC<MapViewProps> = ({
                     <AmenityMarkerLayer />
 
                     <MarkerClusterGroup
+                        ref={clusterGroupRef}
                         chunkedLoading
                         maxClusterRadius={getClusterRadius(currentZoomLevel)}
                         showCoverageOnHover={true}
-                        spiderfyOnMaxZoom={true}
+                        spiderfyOnMaxZoom={false}
+                        zoomToBoundsOnClick={false}
                         removeOutsideVisibleBounds={true}
-                        iconCreateFunction={createClusterIcon(themeColors.primaryDark)}
+                        iconCreateFunction={createPropertyClusterIcon(themeColors.primaryDark)}
                     >
                         {validProperties.map((property) => {
-                            // Task 2.33.4: Create marker icon based on price availability
-                            // - Properties with price: use price marker ($1.2M format)
-                            // - Properties without price: use text marker (e.g., "Contact Agent")
-                            const markerIcon = property.price
-                                ? createPriceMarkerIcon({
-                                    price: typeof property.price === 'number' ? property.price : Number(property.price),
-                                    selected: selectedProperty?.id === property.id,
-                                    themeColor: themeColors.primaryDark
-                                  })
-                                : createTextMarkerIcon({
-                                    priceDisplay: (property as any).price_display || "Contact Agent",
-                                    selected: selectedProperty?.id === property.id,
-                                    themeColor: themeColors.primaryDark
-                                  });
+                            // Create property marker icon with location pin style
+                            // Shows "1" for single properties with dark background (theme color)
+                            const markerIcon = createPropertyMarkerIcon({
+                                selected: selectedProperty?.id === property.id,
+                                themeColor: themeColors.primaryDark
+                            });
 
                             return (
                                 <Marker
@@ -1170,6 +1243,21 @@ const MapView: React.FC<MapViewProps> = ({
                             );
                         })}
                     </MarkerClusterGroup>
+
+                    {/* NEW: Phase 2.40 - Cluster popup for same-coordinate properties */}
+                    {clusterPopupData && (
+                        <Popup
+                            position={clusterPopupData.position}
+                            eventHandlers={{
+                                remove: () => setClusterPopupData(null)
+                            }}
+                        >
+                            <ClusterPropertyListPopup
+                                properties={clusterPopupData.properties}
+                                onSelectProperty={handleClusterPropertySelect}
+                            />
+                        </Popup>
+                    )}
                     </MapContainer>
 
                     {/* NEW: Phase 2.17.5 - Floating map controls (results + filters buttons) */}
@@ -1204,8 +1292,8 @@ const MapView: React.FC<MapViewProps> = ({
                 </Box>
             )}
 
-            {/* NEW: School Legend Component (Phase 2.10.7.7) */}
-            <SchoolLegend />
+            {/* NEW: Map Layer Legend Component (Phase 2.45 - replaces SchoolLegend) */}
+            <MapLayerLegend />
 
             {/* NEW: Status Bar - Fixed at bottom of map (Sprint 3 - Phase 2.5.11) */}
             <MapStatusBar

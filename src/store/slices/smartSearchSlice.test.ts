@@ -79,6 +79,7 @@ const getDefaultState = (): SmartSearchState => ({
     showSchoolsOnMap: true,
     showCatchmentRadius: false,
     selectiveSchoolFilter: false,
+    searchRadius: 3,
   },
   amenities: {
     isLoading: false,
@@ -110,6 +111,7 @@ const getDefaultState = (): SmartSearchState => ({
   // Phase 2.17.1: Collapsible Property Panel defaults
   propertyPanelVisible: true,
   filtersOverlayVisible: false,
+  showSuburbBoundaries: false,
 });
 
 describe('smartSearchSlice - Phase 2.17.1 Collapsible Property Panel', () => {

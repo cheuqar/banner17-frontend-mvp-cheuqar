@@ -32,6 +32,7 @@ import {
 } from '../../../store/slices/smartSearch/schoolPanelSlice';
 import { SchoolMarkerPopup } from './SchoolMarkerPopup';
 import L from 'leaflet';
+import { createTeardropClusterIcon } from './PriceMarkerIcon';
 import './SchoolMarkerLayer.css';
 
 // Maximum number of markers to render for performance
@@ -40,62 +41,19 @@ import './SchoolMarkerLayer.css';
 // Step 2: 1000 → 2000 ✅
 const MAX_MARKERS = 2000;
 
+// School amber color (Google Maps education style)
+const SCHOOL_CLUSTER_COLOR = '#F9A825';
+
 /**
- * Create school cluster icon - Google Maps style
- * Phase 2.24: Amber/orange cluster matching Google Maps education markers
+ * Create school cluster icon - Teardrop style
+ * Phase 2.45: Unified teardrop style matching property markers
+ * Uses amber color to identify schools, number only (no icon/text label)
  * @param cluster - Leaflet MarkerCluster instance
  * @returns Leaflet DivIcon
  */
 const createSchoolClusterIcon = (cluster: any): L.DivIcon => {
   const count = cluster.getChildCount();
-
-  // Phase 2.24: Google Maps education style (amber/orange)
-  // Background: #F9A825 (amber)
-  // Border: 2px white
-  // Text: White, 13px, 600 weight
-  // Icon: White graduation cap
-  const html = `
-    <div class="school-cluster-marker" style="
-      background-color: #F9A825;
-      border: 2px solid white;
-      border-radius: 20px;
-      padding: 6px 12px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      cursor: pointer;
-    ">
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 16 14"
-        fill="white"
-        xmlns="http://www.w3.org/2000/svg"
-        style="flex-shrink: 0;"
-      >
-        <!-- Graduation cap icon -->
-        <polygon points="8,0 0,4 8,8 16,4" />
-        <path d="M3 5.5v3.5c0 0.8 2.2 1.5 5 1.5s5-0.7 5-1.5V5.5L8 8 3 5.5z" />
-        <rect x="7" y="5" width="2" height="4" />
-        <circle cx="8" cy="10" r="1.2" />
-      </svg>
-      <span style="
-        color: white;
-        font-size: 13px;
-        font-weight: 600;
-        white-space: nowrap;
-      ">${count} schools</span>
-    </div>
-  `;
-
-  return L.divIcon({
-    html,
-    className: 'custom-school-cluster-marker',
-    iconSize: [120, 40],
-    iconAnchor: [60, 20],
-    popupAnchor: [0, -20]
-  });
+  return createTeardropClusterIcon(count, SCHOOL_CLUSTER_COLOR, 'school-cluster');
 };
 
 /**
@@ -213,10 +171,14 @@ export const SchoolMarkerLayer: React.FC<SchoolMarkerLayerProps> = ({
   );
 
   /**
-   * Handle marker click - select/deselect school
+   * Handle marker click - select school and open popup
    * Phase 2.16: Unified selection behavior between map and list
+   * Phase 2.46 FIX: Clicking a selected marker should NOT deselect it
+   * - Click unselected marker → select it and open popup
+   * - Click selected marker → just open popup (keep selection)
+   * - Deselection happens via popup button or clicking different marker
    */
-  const handleMarkerClick = useCallback((school: any, isSelected: boolean) => {
+  const handleMarkerClick = useCallback((school: any, isSelected: boolean, markerRef: L.Marker | null) => {
     console.log('[SchoolMarkerLayer] Marker clicked:', {
       school_name: school.school_name,
       school_id: school.school_id,
@@ -224,13 +186,20 @@ export const SchoolMarkerLayer: React.FC<SchoolMarkerLayerProps> = ({
     });
 
     if (isSelected) {
-      // Deselect if already selected
-      console.log('[SchoolMarkerLayer] Deselecting school via marker click');
-      dispatch(deselectSchool(school.school_id));
+      // Phase 2.46 FIX: Don't deselect when clicking selected marker
+      // Just open the popup so user can interact with it
+      console.log('[SchoolMarkerLayer] School already selected - opening popup only');
     } else {
       // Select school (auto-deselects previous due to MAX_SELECTED_SCHOOLS=1)
       console.log('[SchoolMarkerLayer] Selecting school via marker click');
       dispatch(selectSchool(school));
+    }
+
+    // Open popup
+    if (markerRef) {
+      setTimeout(() => {
+        markerRef.openPopup();
+      }, 50);
     }
   }, [dispatch]);
 
@@ -314,7 +283,9 @@ export const SchoolMarkerLayer: React.FC<SchoolMarkerLayerProps> = ({
               click: (e) => {
                 // Phase 2.16: Map marker selection
                 e.originalEvent.stopPropagation(); // Prevent map click
-                handleMarkerClick(school, isSelected);
+                // Phase 2.46 FIX: Pass marker ref to open popup after selection
+                const marker = e.target as L.Marker;
+                handleMarkerClick(school, isSelected, marker);
               },
             }}
           >
@@ -328,7 +299,7 @@ export const SchoolMarkerLayer: React.FC<SchoolMarkerLayerProps> = ({
             >
               {school.school_name}
             </Tooltip>
-            <Popup minWidth={200} maxWidth={280}>
+            <Popup minWidth={280} maxWidth={350}>
               <SchoolMarkerPopup school={school} isSelected={isSelected} />
             </Popup>
           </Marker>
