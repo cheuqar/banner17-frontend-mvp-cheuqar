@@ -8,7 +8,8 @@
 #   - Push to 'develop' branch → Deploy to dev server (self-hosted runner)
 #
 # Required GitHub Secrets:
-#   - DOPPLER_TOKEN: Service token for Doppler CLI (project: listez-backend)
+#   - DOPPLER_TOKEN: Service token for Doppler CLI (stg config)
+#   - DOPPLER_TOKEN_DEV: Service token for Doppler CLI (dev config)
 #   - FLY_API_TOKEN: Fly.io API token for deployment
 #
 # Required Self-Hosted Runner (for develop branch):
@@ -203,6 +204,8 @@ jobs:
 
       - name: Deploy with Docker Compose
         working-directory: ${{ github.workspace }}
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_DEV }}
         run: |
           echo "Stopping existing containers..."
           docker compose down || true
