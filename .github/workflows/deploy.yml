@@ -1,0 +1,222 @@
+# =============================================================================
+# Chatbot App CI/CD Pipeline
+# =============================================================================
+# Automated deployment pipeline for the Banner17 chatbot frontend
+#
+# Triggers:
+#   - Push to 'staging' branch → Deploy to Fly.io staging (stg)
+#   - Push to 'develop' branch → Deploy to development server (placeholder)
+#
+# Required GitHub Secrets:
+#   - DOPPLER_TOKEN: Service token for Doppler CLI (project: listez-backend)
+#   - FLY_API_TOKEN: Fly.io API token for deployment
+#
+# =============================================================================
+
+name: Deploy Chatbot App
+
+on:
+  push:
+    branches:
+      - staging
+      - develop
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'stg'
+        type: choice
+        options:
+          - stg
+          - dev
+
+env:
+  NODE_VERSION: '20'
+  FLY_APP_STG: 'listez-chatbot'
+  DOPPLER_PROJECT: 'listez-backend'
+
+jobs:
+  # ===========================================================================
+  # VALIDATION JOB
+  # ===========================================================================
+  # Ensures code quality before any deployment
+  validate:
+    name: Validate Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+        continue-on-error: false
+
+      - name: TypeScript Compilation Check
+        run: npx tsc --noEmit
+        continue-on-error: false
+
+      - name: Build Verification (dry-run)
+        run: npm run build
+        env:
+          # Minimal env vars for build verification
+          VITE_SUPABASE_URL: 'https://placeholder.supabase.co'
+          VITE_SUPABASE_ANON_KEY: 'placeholder'
+          VITE_API_BASE_URL: 'https://placeholder.api.com'
+          VITE_WS_BASE_URL: 'wss://placeholder.api.com'
+
+      # Optional: Run tests if available
+      # - name: Run Tests
+      #   run: npm test
+      #   continue-on-error: true
+
+  # ===========================================================================
+  # DEPLOY TO STAGING (Fly.io)
+  # ===========================================================================
+  deploy-staging:
+    name: Deploy to Staging (Fly.io)
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Doppler CLI
+        uses: dopplerhq/cli-action@v3
+
+      - name: Install Fly CLI
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Fetch secrets from Doppler (stg)
+        id: doppler
+        run: |
+          # Fetch VITE_* variables from Doppler stg config
+          echo "Fetching secrets from Doppler (stg config)..."
+
+          VITE_SUPABASE_URL=$(doppler secrets get VITE_SUPABASE_URL --plain)
+          VITE_SUPABASE_ANON_KEY=$(doppler secrets get VITE_SUPABASE_ANON_KEY --plain)
+          VITE_API_BASE_URL=$(doppler secrets get VITE_API_BASE_URL --plain)
+          VITE_WS_BASE_URL=$(doppler secrets get VITE_WS_BASE_URL --plain)
+          VERSION_MAJOR=$(doppler secrets get VERSION_MAJOR --plain 2>/dev/null || echo "0")
+          VERSION_MINOR=$(doppler secrets get VERSION_MINOR --plain 2>/dev/null || echo "0")
+
+          # Generate build metadata
+          RELEASE_NO=$(date -u +%Y%m%d%H%M%S)
+          APP_VERSION="v${VERSION_MAJOR}.${VERSION_MINOR}.${RELEASE_NO}"
+          BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          GIT_SHA="${GITHUB_SHA::7}"
+
+          # Export as outputs (masked for security)
+          echo "::add-mask::$VITE_SUPABASE_URL"
+          echo "::add-mask::$VITE_SUPABASE_ANON_KEY"
+          echo "::add-mask::$VITE_API_BASE_URL"
+          echo "::add-mask::$VITE_WS_BASE_URL"
+
+          echo "VITE_SUPABASE_URL=$VITE_SUPABASE_URL" >> $GITHUB_OUTPUT
+          echo "VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY" >> $GITHUB_OUTPUT
+          echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" >> $GITHUB_OUTPUT
+          echo "VITE_WS_BASE_URL=$VITE_WS_BASE_URL" >> $GITHUB_OUTPUT
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_OUTPUT
+          echo "GIT_SHA=$GIT_SHA" >> $GITHUB_OUTPUT
+
+          echo "✓ Secrets fetched successfully"
+          echo "  VITE_API_BASE_URL: $VITE_API_BASE_URL"
+          echo "  APP_VERSION: $APP_VERSION"
+        env:
+          DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+          DOPPLER_PROJECT: ${{ env.DOPPLER_PROJECT }}
+          DOPPLER_CONFIG: stg
+
+      - name: Deploy to Fly.io (staging)
+        run: |
+          echo "Deploying to Fly.io app: ${{ env.FLY_APP_STG }}"
+          echo "Version: ${{ steps.doppler.outputs.APP_VERSION }}"
+
+          flyctl deploy --app ${{ env.FLY_APP_STG }} --remote-only \
+            --build-arg VITE_SUPABASE_URL="${{ steps.doppler.outputs.VITE_SUPABASE_URL }}" \
+            --build-arg VITE_SUPABASE_ANON_KEY="${{ steps.doppler.outputs.VITE_SUPABASE_ANON_KEY }}" \
+            --build-arg VITE_API_BASE_URL="${{ steps.doppler.outputs.VITE_API_BASE_URL }}" \
+            --build-arg VITE_WS_BASE_URL="${{ steps.doppler.outputs.VITE_WS_BASE_URL }}" \
+            --build-arg VITE_APP_VERSION="${{ steps.doppler.outputs.APP_VERSION }}" \
+            --build-arg VITE_BUILD_TIME="${{ steps.doppler.outputs.BUILD_TIME }}" \
+            --build-arg VITE_GIT_SHA="${{ steps.doppler.outputs.GIT_SHA }}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Deployment Summary
+        run: |
+          echo "=========================================="
+          echo "  DEPLOYMENT SUCCESSFUL"
+          echo "=========================================="
+          echo "  App:        ${{ env.FLY_APP_STG }}"
+          echo "  Version:    ${{ steps.doppler.outputs.APP_VERSION }}"
+          echo "  Git SHA:    ${{ steps.doppler.outputs.GIT_SHA }}"
+          echo "  API URL:    ${{ steps.doppler.outputs.VITE_API_BASE_URL }}"
+          echo "  Build Time: ${{ steps.doppler.outputs.BUILD_TIME }}"
+          echo "=========================================="
+
+  # ===========================================================================
+  # DEPLOY TO DEVELOPMENT (Placeholder)
+  # ===========================================================================
+  deploy-development:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/develop'
+    environment: development
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Placeholder - Development Deployment
+        run: |
+          echo "=========================================="
+          echo "  DEVELOPMENT DEPLOYMENT (PLACEHOLDER)"
+          echo "=========================================="
+          echo ""
+          echo "  This job is a placeholder for future development"
+          echo "  server deployment configuration."
+          echo ""
+          echo "  TODO: Implement development server deployment"
+          echo "  - Configure development server SSH/API access"
+          echo "  - Add deployment scripts"
+          echo "  - Configure Doppler 'dev' environment"
+          echo ""
+          echo "  Branch: develop"
+          echo "  Commit: ${GITHUB_SHA::7}"
+          echo "=========================================="
+
+      # TODO: Add actual development deployment steps
+      # Example structure:
+      # - name: Install Doppler CLI
+      #   uses: dopplerhq/cli-action@v3
+      #
+      # - name: Fetch secrets from Doppler (dev)
+      #   run: doppler secrets download --format env-no-quotes > .env
+      #   env:
+      #     DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}
+      #     DOPPLER_CONFIG: dev
+      #
+      # - name: Build application
+      #   run: npm run build
+      #
+      # - name: Deploy to development server
+      #   run: |
+      #     # Add SSH/rsync/API deployment here
+      #     echo "Deploying to development server..."
