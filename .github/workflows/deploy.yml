@@ -202,18 +202,21 @@ jobs:
           echo "  Runner: $(hostname)"
           echo "=========================================="
 
-      - name: Deploy with Docker Compose
+      - name: Deploy Chatbot App with Docker Compose
         working-directory: ${{ github.workspace }}
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_DEV }}
         run: |
-          echo "Stopping existing containers..."
-          docker compose down || true
+          echo "Stopping existing chatbot-app container..."
+          docker compose stop chatbot-app || true
 
-          echo "Building and starting containers with Doppler (dev config)..."
-          doppler run --config dev -- docker compose up -d --build
+          echo "Building and starting chatbot-app with Doppler (dev config)..."
+          doppler run --config dev -- docker compose up -d --build chatbot-app
 
-          echo "Waiting for services to start..."
+          echo "Ensuring cloudflared tunnel is running..."
+          doppler run --config dev -- docker compose up -d cloudflared
+
+          echo "Waiting for service to start..."
           sleep 10
 
       - name: Verify deployment
