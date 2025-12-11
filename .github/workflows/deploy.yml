@@ -207,11 +207,11 @@ jobs:
         env:
           DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN_DEV }}
         run: |
-          echo "Stopping existing chatbot-app container..."
-          docker compose stop chatbot-app || true
+          echo "Stopping existing chatbot-app-dev container..."
+          docker compose stop chatbot-app-dev || true
 
-          echo "Building and starting chatbot-app with Doppler (dev config)..."
-          doppler run --config dev -- docker compose up -d --build chatbot-app
+          echo "Building and starting chatbot-app-dev with Doppler (dev config)..."
+          doppler run --config dev -- docker compose up -d --build chatbot-app-dev
 
           echo "Ensuring cloudflared tunnel is running..."
           doppler run --config dev -- docker compose up -d cloudflared
@@ -222,7 +222,7 @@ jobs:
       - name: Verify deployment
         run: |
           echo "Checking service health..."
-          curl -sf http://localhost:3301/ || echo "Warning: Health check failed, service may still be starting"
+          curl -sf http://localhost:3401/ || echo "Warning: Health check failed, service may still be starting"
 
       - name: Deployment Summary
         run: |
