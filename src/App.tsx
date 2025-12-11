@@ -18,6 +18,7 @@ import SignInPage from './pages/SignInPage';
 import EmailVerificationRequired from './pages/EmailVerificationRequired';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
+import NotFoundPage from './pages/NotFoundPage';
 
 // Inner component that has access to AuthContext
 function AppContent() {
@@ -74,6 +75,8 @@ function AppContent() {
           <Route path="/buyer-profile-builder" element={<BuyerProfileBuilder />} />
           <Route path="/buyer-profile-builder/:profileId" element={<BuyerProfileBuilder />} />
         </Route>
+
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Box>
   );
