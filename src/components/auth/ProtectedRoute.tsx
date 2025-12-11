@@ -1,10 +1,10 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate, useLocation, Outlet } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface ProtectedRouteProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 /**
@@ -73,5 +73,6 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   // All checks passed - render protected content
-  return <>{children}</>;
+  // Support both wrapper mode (children) and layout mode (Outlet)
+  return children ? <>{children}</> : <Outlet />;
 }

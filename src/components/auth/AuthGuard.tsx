@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
+import { Outlet } from 'react-router-dom'
 import { Box, CircularProgress, Typography } from '@mui/material'
 import { useAuth } from '../../contexts/AuthContext'
 import AuthModal from './AuthModal'
 
 interface AuthGuardProps {
-  children: React.ReactNode
+  children?: React.ReactNode
   fallback?: React.ReactNode
 }
 
@@ -82,5 +83,6 @@ export default function AuthGuard({ children, fallback }: AuthGuardProps) {
   }
 
   // User is authenticated, render the protected content
-  return <>{children}</>
+  // Support both wrapper mode (children) and layout mode (Outlet)
+  return children ? <>{children}</> : <Outlet />
 }
