@@ -43,6 +43,7 @@ import { useAddressAutocomplete } from '../../../../../hooks/useAddressAutocompl
 interface LocationSearchInputProps {
   placeholder?: string;
   disabled?: boolean;
+  fullRounded?: boolean;
 }
 
 /**
@@ -51,6 +52,7 @@ interface LocationSearchInputProps {
 export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
   placeholder = 'Search location...',
   disabled = false,
+  fullRounded = false,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
   const location = useSelector((state: RootState) => state.smartSearch.filters.location);
@@ -180,7 +182,7 @@ export const LocationSearchInput: React.FC<LocationSearchInputProps> = ({
             '& .MuiInputBase-root': {
               height: '44px',
               backgroundColor: '#ffffff',
-              borderRadius: '8px 0 0 8px',
+              borderRadius: fullRounded ? '8px' : '8px 0 0 8px',
               fontSize: '14px',
             },
             '& .MuiInputBase-input': {

@@ -30,6 +30,8 @@ import SchoolMarkerLayer from './SchoolMarkerLayer';
 import AmenityMarkerLayer from './AmenityMarkerLayer';
 // NEW: Phase 2.12.3 - Map loading overlay component
 import MapLoadingOverlay from './MapLoadingOverlay';
+// NEW: Location search input at map top-left
+import LocationSearchInput from './CompactFilterBar/components/LocationSearchInput';
 import { setVisibleSchoolMarkers } from '../../../store/slices/smartSearch/schoolPanelSlice';
 import { selectSearchResults, selectShowMarkersOnMap, selectSelectedSchools } from '../../../store/slices/smartSearch/schoolPanelSelectors';
 // Phase 2.12.1 FIX: Import the correct selector from smartSearchSlice
@@ -1042,6 +1044,20 @@ const MapView: React.FC<MapViewProps> = ({
 
     return (
         <Box sx={{ position: 'relative', height: '100%', width: '100%' }}>
+            {/* NEW: Location Search Input at top-left of map */}
+            <Box
+                sx={{
+                    position: 'absolute',
+                    top: 12,
+                    left: 12,
+                    zIndex: 1000,
+                    width: { xs: 'calc(100% - 24px)', sm: '280px' },
+                    maxWidth: '280px',
+                }}
+            >
+                <LocationSearchInput placeholder="Search location..." fullRounded />
+            </Box>
+
             {/* NEW: Active Spatial Filter Banner - Sprint 3 (Phase 2.5.9) */}
             <ActiveSpatialFilterBanner />
 

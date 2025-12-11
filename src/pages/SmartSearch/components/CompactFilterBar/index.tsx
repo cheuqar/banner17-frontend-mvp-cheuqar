@@ -36,17 +36,7 @@
  */
 
 import React from 'react';
-import {
-  Box,
-  useMediaQuery,
-  useTheme,
-} from '@mui/material';
-import LocationSearchInput from './components/LocationSearchInput';
-import PriceRangeSelector from './components/PriceRangeSelector';
-import BedroomRangeSelector from './components/BedroomRangeSelector';
-import PropertyTypeSelector from './components/PropertyTypeSelector';
-import MoreFiltersButton from './components/MoreFiltersButton';
-import ApplyButton from './components/ApplyButton';
+import { Box } from '@mui/material';
 
 interface CompactFilterBarProps {
   disabled?: boolean;
@@ -54,113 +44,18 @@ interface CompactFilterBarProps {
 
 /**
  * Compact Filter Bar Component (Tier 2 of Header)
+ * LocationSearchInput has been moved to map top-left position
  */
 export const CompactFilterBar: React.FC<CompactFilterBarProps> = ({ disabled = false }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // <600px
-  const isTablet = useMediaQuery(theme.breakpoints.down('md')); // <900px
-  const isDesktop = useMediaQuery(theme.breakpoints.up('md')); // >=900px
-
-  // Desktop layout: Single row, all filters inline
-  if (isDesktop) {
-    return (
-      <Box
-        component="nav"
-        aria-label="Property search filters"
-        sx={{
-          height: '64px',
-          display: 'flex',
-          alignItems: 'center',
-          // Phase 2.28.9 FIX: Center filters horizontally for visual balance with TopNavigation
-          // Phase 2.30: Replaced AreaScopeToggle with ApplyButton for mandatory bbox filtering
-          // Total filter width ~1040px (280+240+200+140+140+100 + 60px gaps) centered in viewport
-          justifyContent: 'center',
-          padding: '12px 32px',
-          gap: '12px', // 12px gap between all filters
-          overflow: 'auto',
-          scrollbarWidth: 'none',
-
-          '&::-webkit-scrollbar': {
-            display: 'none',
-          },
-        }}
-      >
-        <LocationSearchInput disabled={disabled} />
-        <PriceRangeSelector disabled={disabled} />
-        <BedroomRangeSelector disabled={disabled} />
-        <PropertyTypeSelector disabled={disabled} />
-        <MoreFiltersButton disabled={disabled} />
-        <ApplyButton disabled={disabled} />
-      </Box>
-    );
-  }
-
-  // Tablet layout: 2-row grid with adjusted widths
-  // Phase 2.30: Removed AreaScopeToggle, added ApplyButton for mandatory bbox filtering
-  if (isTablet) {
-    return (
-      <Box
-        component="nav"
-        aria-label="Property search filters"
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '8px',
-          padding: '12px 24px',
-          alignItems: 'center',
-        }}
-      >
-        {/* Row 1: Location full width */}
-        <Box sx={{ gridColumn: '1 / 4' }}>
-          <LocationSearchInput disabled={disabled} />
-        </Box>
-
-        {/* Row 2: Price | Beds | Type */}
-        <PriceRangeSelector disabled={disabled} />
-        <BedroomRangeSelector disabled={disabled} />
-        <PropertyTypeSelector disabled={disabled} />
-
-        {/* Row 3: More Filters | Apply Button (spans 2 columns) */}
-        <MoreFiltersButton disabled={disabled} />
-        <Box sx={{ gridColumn: '2 / 4' }}>
-          <ApplyButton disabled={disabled} />
-        </Box>
-      </Box>
-    );
-  }
-
-  // Mobile layout: Vertical stack
-  // Phase 2.30: Removed AreaScopeToggle, added ApplyButton for mandatory bbox filtering
   return (
     <Box
       component="nav"
       aria-label="Property search filters"
       sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px',
-        padding: '12px 16px',
-        alignItems: 'stretch',
+        height: 0,
+        overflow: 'hidden',
       }}
-    >
-      {/* Full width filters */}
-      <LocationSearchInput disabled={disabled} />
-
-      {/* 2-column grid for ranges */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        <PriceRangeSelector disabled={disabled} />
-        <BedroomRangeSelector disabled={disabled} />
-      </Box>
-
-      {/* Full width filters */}
-      <PropertyTypeSelector disabled={disabled} />
-
-      {/* 2-column grid for More Filters and Apply button */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-        <MoreFiltersButton disabled={disabled} />
-        <ApplyButton disabled={disabled} />
-      </Box>
-    </Box>
+    />
   );
 };
 
