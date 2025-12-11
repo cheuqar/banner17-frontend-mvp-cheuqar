@@ -19,7 +19,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: process.env.VITE_HOST || '0.0.0.0', // Allow external connections
-    port: 3000,      // Match Docker port mapping
+    port: parseInt(process.env.VITE_PORT || '3000'),      // Match Docker port mapping
     allowedHosts: getAllowedHosts(),
     watch: {
       usePolling: true, // For Docker compatibility

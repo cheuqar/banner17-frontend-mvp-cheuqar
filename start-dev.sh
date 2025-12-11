@@ -29,7 +29,7 @@ rm -rf node_modules/.vite 2>/dev/null || true
 
 # Set environment variables for better server compatibility
 export VITE_HOST=${VITE_HOST:-0.0.0.0}
-export VITE_PORT=3000
+export VITE_PORT=${VITE_PORT:-3000}
 
 # Ensure API base URL is correct for local development
 export VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:8100}
