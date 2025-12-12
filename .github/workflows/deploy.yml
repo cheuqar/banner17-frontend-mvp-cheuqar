@@ -219,6 +219,26 @@ jobs:
           echo "Waiting for service to start..."
           sleep 10
 
+      - name: Connect Cloudflare Tunnel to chatbot network
+        run: |
+          echo "Ensuring cloudflared can reach chatbot-app-dev..."
+          NETWORK_NAME="banner17-frontend-mvp-cheuqar_default"
+
+          # Check if cloudflared is running
+          if docker ps --format '{{.Names}}' | grep -q 'listez_cloudflared'; then
+            # Connect cloudflared to chatbot network if not already connected
+            if ! docker inspect listez_cloudflared --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' | grep -q "$NETWORK_NAME"; then
+              echo "Connecting listez_cloudflared to $NETWORK_NAME..."
+              docker network connect "$NETWORK_NAME" listez_cloudflared
+              echo "Restarting cloudflared to refresh DNS..."
+              docker restart listez_cloudflared
+            else
+              echo "cloudflared already connected to $NETWORK_NAME"
+            fi
+          else
+            echo "Warning: listez_cloudflared container not found"
+          fi
+
       - name: Verify deployment
         run: |
           echo "Checking service health..."
