@@ -55,6 +55,16 @@ export interface SearchFilters {
   school_radius_km?: number; // Radius in km for non-catchment schools (default: 3)
 }
 
+// Phase 2.58: Server cluster structure (matches backend ClusteredSearchResponse)
+export interface ServerClusterData {
+  id: string;
+  count: number;
+  center: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
 export interface SearchResponse {
   properties: BaseProperty[];
   total_count: number;
@@ -64,6 +74,40 @@ export interface SearchResponse {
     offset: number;
     has_more: boolean;
     returned: number;
+  };
+  // Phase 2.56: Optional cluster info for clustered search mode
+  _clusterInfo?: {
+    serverClusters: number;
+    gridInfo: {
+      cell_size_km: number;
+      zoom_level: number;
+    };
+  };
+  // Phase 2.58: Server-side clusters for rendering on map
+  clusters?: ServerClusterData[];
+}
+
+// Phase 2.56: Clustered Search interfaces
+export interface ClusteredSearchFilters extends SearchFilters {
+  zoom_level: number;
+  cluster_threshold?: number;
+}
+
+export interface ClusterItem {
+  id: string;
+  center: { lat: number; lng: number };
+  count: number;
+  bounds?: BBoxBounds;
+  property_ids: string[];
+}
+
+export interface ClusteredSearchResponse {
+  clusters: ClusterItem[];
+  properties: BaseProperty[];
+  total_count: number;
+  grid_info: {
+    cell_size_km: number;
+    zoom_level: number;
   };
 }
 
@@ -159,6 +203,124 @@ export const searchProperties = async (filters: SearchFilters): Promise<SearchRe
       reportError(error, {
         category: 'API_TIMEOUT',
         endpoint: '/api/v1/smart-search/filters/search',
+        filters: cleanFilters,
+        timeout_ms: 30000,
+      });
+    }
+    throw error;
+  }
+};
+
+/**
+ * Search properties with clustering (Phase 2.56)
+ * Uses server-side grid-based clustering for performance
+ * Returns both clusters and individual properties for small clusters
+ */
+export const searchPropertiesClustered = async (filters: ClusteredSearchFilters): Promise<SearchResponse> => {
+  // Clean filters same as standard search
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(([key, v]) => {
+      if (key === 'bbox' && v && typeof v === 'object') {
+        const bbox = v as BBoxBounds;
+        const isValid = 'north' in bbox && 'south' in bbox && 'east' in bbox && 'west' in bbox;
+        return isValid;
+      }
+      if ((key === 'drawn_polygon' || key === 'school_catchment_polygon') && v && typeof v === 'object') {
+        const geometry = v as any;
+        return geometry.type && geometry.coordinates && Array.isArray(geometry.coordinates);
+      }
+      if (v == null || v === '') return false;
+      if (Array.isArray(v) && v.length === 0) return false;
+      return true;
+    })
+  );
+
+  // Remove zoom_level and cluster_threshold from body - they go in query params
+  const { zoom_level: _, cluster_threshold: __, ...bodyFilters } = cleanFilters as any;
+
+  console.log('🔍 [SmartSearchService] Clustered search with filters:', {
+    queryParams: { zoom_level: filters.zoom_level, cluster_threshold: filters.cluster_threshold || 3 },
+    bodyFilters,
+  });
+
+  // BugSnag: Breadcrumb before API call
+  leaveBreadcrumb('searchPropertiesClustered initiated', {
+    filters: JSON.stringify(bodyFilters),
+    zoom_level: filters.zoom_level,
+    cluster_threshold: filters.cluster_threshold || 3,
+  }, 'request');
+
+  try {
+    // Build query params for zoom_level and cluster_threshold (backend expects these as query params)
+    const queryParams = new URLSearchParams();
+    queryParams.set('zoom_level', String(filters.zoom_level || 12));
+    queryParams.set('cluster_threshold', String(filters.cluster_threshold || 3));
+
+    const response = await fetch(
+      `${API_BASE_URL}/api/v1/smart-search/filters/search/clustered?${queryParams.toString()}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyFilters),
+        signal: AbortSignal.timeout(30000), // 30s timeout
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+      const error = new Error(errorData.detail || `Clustered search failed: ${response.statusText}`);
+
+      reportError(error, {
+        category: response.status === 504 ? 'API_TIMEOUT' : 'CLUSTERED_SEARCH_FAILED',
+        endpoint: '/api/v1/smart-search/filters/search/clustered',
+        status: response.status,
+        filters: cleanFilters,
+      });
+
+      throw error;
+    }
+
+    const data: ClusteredSearchResponse = await response.json();
+    console.log('✅ [SmartSearchService] Clustered search successful:', {
+      total_count: data.total_count,
+      clusters: data.clusters?.length || 0,
+      properties: data.properties?.length || 0,
+      grid_info: data.grid_info,
+    });
+
+    // BugSnag: Breadcrumb on success
+    leaveBreadcrumb('searchPropertiesClustered completed', {
+      total_count: data.total_count,
+      clusters: data.clusters?.length || 0,
+      properties: data.properties?.length || 0,
+    }, 'request');
+
+    // Transform clustered response to standard SearchResponse format
+    // Phase 2.58: Include server clusters for direct rendering on map
+    return {
+      properties: data.properties || [],
+      total_count: data.total_count,
+      filters_applied: cleanFilters,
+      page_info: {
+        limit: filters.limit || 500,
+        offset: filters.offset || 0,
+        has_more: false, // Clustered search returns all within viewport
+        returned: data.properties?.length || 0,
+      },
+      _clusterInfo: {
+        serverClusters: data.clusters?.length || 0,
+        gridInfo: data.grid_info,
+      },
+      // Phase 2.58: Pass through server clusters for frontend rendering
+      clusters: data.clusters || [],
+    };
+  } catch (error) {
+    if (error instanceof Error && error.name === 'TimeoutError') {
+      reportError(error, {
+        category: 'API_TIMEOUT',
+        endpoint: '/api/v1/smart-search/filters/search/clustered',
         filters: cleanFilters,
         timeout_ms: 30000,
       });

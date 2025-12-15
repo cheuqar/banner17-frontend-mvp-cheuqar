@@ -32,7 +32,11 @@ export VITE_WS_BASE_URL="ws://localhost:8100"
 echo "🚀 Starting chatbot-app..."
 if command -v doppler >/dev/null 2>&1; then
     echo "   Using Doppler for secrets (Supabase keys)"
-    doppler run --config dev -- docker compose up --build
+    echo "   Overriding API URLs for local development"
+    # Use dev_local config for Supabase keys, but override API URLs for localhost via docker-compose env
+    doppler run --config dev_local -- \
+        env VITE_API_BASE_URL="http://localhost:8100" VITE_WS_BASE_URL="ws://localhost:8100" \
+        docker compose up --build
 else
     echo "   Using local .env file"
     docker compose up --build

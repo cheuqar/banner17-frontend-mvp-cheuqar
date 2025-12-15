@@ -62,6 +62,9 @@ const TopNavigation: React.FC = () => {
   // User Profile Panel state
   const [profilePanelOpen, setProfilePanelOpen] = useState(false);
 
+  // Settings-only panel state (for non-authenticated users)
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
+
   // Country selector state
   const [countryAnchorEl, setCountryAnchorEl] = useState<null | HTMLElement>(null);
   const countryMenuOpen = Boolean(countryAnchorEl);
@@ -415,16 +418,26 @@ const TopNavigation: React.FC = () => {
         {/* Far Right: User Profile Button (Authenticated) or Sign In Button (Unauthenticated) */}
         <UserProfileButton
           onProfileClick={() => setProfilePanelOpen(true)}
+          onSettingsClick={() => setSettingsPanelOpen(true)}
           isLoading={false}
         />
       </Box>
 
-      {/* User Profile Panel Drawer */}
+      {/* User Profile Panel Drawer (Authenticated) */}
       <UserProfilePanel
         open={profilePanelOpen}
         onClose={() => setProfilePanelOpen(false)}
         onMenuItemClick={handleProfileMenuClick}
         versionCode="v2.31.0"
+      />
+
+      {/* Settings-Only Panel Drawer (Non-Authenticated) */}
+      <UserProfilePanel
+        open={settingsPanelOpen}
+        onClose={() => setSettingsPanelOpen(false)}
+        onMenuItemClick={handleProfileMenuClick}
+        versionCode="v2.31.0"
+        settingsOnly={true}
       />
 
       {/* Coming Soon Modal */}

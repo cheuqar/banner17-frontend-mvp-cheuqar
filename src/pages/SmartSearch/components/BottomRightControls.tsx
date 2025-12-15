@@ -5,7 +5,11 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import EditIcon from '@mui/icons-material/Edit';
 import ClearIcon from '@mui/icons-material/Clear';
 import GridOnIcon from '@mui/icons-material/GridOn'; // Phase 2.38: Suburb boundaries icon
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance'; // Phase 2.55: Heritage icon
+import LocalFireDepartmentIcon from '@mui/icons-material/LocalFireDepartment'; // Phase 2.55: Bushfire icon
 import { MIN_ZOOM_FOR_SUBURB_BOUNDARIES } from './SuburbBoundaryLayer';
+import { MIN_ZOOM_FOR_HERITAGE } from './HeritageLayer';
+import { MIN_ZOOM_FOR_BUSHFIRE } from './BushfireLayer';
 
 interface BottomRightControlsProps {
   // Zoom controls
@@ -22,6 +26,12 @@ interface BottomRightControlsProps {
   showSuburbBoundaries: boolean;
   onToggleSuburbBoundaries: () => void;
   currentZoomLevel: number; // Current map zoom level for enabling/disabling suburb boundaries
+
+  // Phase 2.55: Heritage & Bushfire overlay controls
+  showHeritageSites: boolean;
+  onToggleHeritageSites: () => void;
+  showBushfireZones: boolean;
+  onToggleBushfireZones: () => void;
 }
 
 const BottomRightControls: React.FC<BottomRightControlsProps> = ({
@@ -33,10 +43,18 @@ const BottomRightControls: React.FC<BottomRightControlsProps> = ({
   onClearDrawings,
   showSuburbBoundaries,
   onToggleSuburbBoundaries,
-  currentZoomLevel
+  currentZoomLevel,
+  // Phase 2.55: Heritage & Bushfire controls
+  showHeritageSites,
+  onToggleHeritageSites,
+  showBushfireZones,
+  onToggleBushfireZones
 }) => {
   // Phase 2.38: Check if zoom level is sufficient for suburb boundaries
   const isSuburbBoundariesEnabled = currentZoomLevel >= MIN_ZOOM_FOR_SUBURB_BOUNDARIES;
+  // Phase 2.55: Check if zoom level is sufficient for heritage and bushfire overlays
+  const isHeritageEnabled = currentZoomLevel >= MIN_ZOOM_FOR_HERITAGE;
+  const isBushfireEnabled = currentZoomLevel >= MIN_ZOOM_FOR_BUSHFIRE;
   return (
     <Box
       sx={{
@@ -203,6 +221,112 @@ const BottomRightControls: React.FC<BottomRightControlsProps> = ({
             }}
           >
             <GridOnIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+
+      {/* Phase 2.55: Heritage Sites Toggle Button */}
+      <Tooltip
+        title={
+          !isHeritageEnabled
+            ? `Zoom in to level ${MIN_ZOOM_FOR_HERITAGE} to show heritage sites`
+            : showHeritageSites
+              ? "Hide Heritage Sites"
+              : "Show Heritage Sites"
+        }
+        placement="right"
+      >
+        <span> {/* Wrapper span needed for Tooltip on disabled button */}
+          <IconButton
+            onClick={onToggleHeritageSites}
+            disabled={!isHeritageEnabled}
+            sx={{
+              width: 40,
+              height: 40,
+              backgroundColor: !isHeritageEnabled
+                ? 'grey.300'
+                : showHeritageSites
+                  ? '#3B82F6' // Blue for heritage
+                  : 'white',
+              color: !isHeritageEnabled
+                ? 'grey.500'
+                : showHeritageSites
+                  ? 'white'
+                  : 'text.primary',
+              boxShadow: !isHeritageEnabled ? 1 : 2,
+              '&:hover': {
+                backgroundColor: !isHeritageEnabled
+                  ? 'grey.300'
+                  : showHeritageSites
+                    ? '#2563EB' // Darker blue on hover
+                    : 'grey.100',
+                boxShadow: !isHeritageEnabled ? 1 : 3
+              },
+              '&.Mui-disabled': {
+                backgroundColor: 'grey.300',
+                color: 'grey.500',
+              },
+              // Mobile responsive
+              '@media (max-width: 768px)': {
+                width: 36,
+                height: 36,
+              }
+            }}
+          >
+            <AccountBalanceIcon fontSize="small" />
+          </IconButton>
+        </span>
+      </Tooltip>
+
+      {/* Phase 2.55: Bushfire Zones Toggle Button */}
+      <Tooltip
+        title={
+          !isBushfireEnabled
+            ? `Zoom in to level ${MIN_ZOOM_FOR_BUSHFIRE} to show bushfire zones`
+            : showBushfireZones
+              ? "Hide Bushfire Zones"
+              : "Show Bushfire Zones"
+        }
+        placement="right"
+      >
+        <span> {/* Wrapper span needed for Tooltip on disabled button */}
+          <IconButton
+            onClick={onToggleBushfireZones}
+            disabled={!isBushfireEnabled}
+            sx={{
+              width: 40,
+              height: 40,
+              backgroundColor: !isBushfireEnabled
+                ? 'grey.300'
+                : showBushfireZones
+                  ? '#DC2626' // Red for bushfire
+                  : 'white',
+              color: !isBushfireEnabled
+                ? 'grey.500'
+                : showBushfireZones
+                  ? 'white'
+                  : 'text.primary',
+              boxShadow: !isBushfireEnabled ? 1 : 2,
+              '&:hover': {
+                backgroundColor: !isBushfireEnabled
+                  ? 'grey.300'
+                  : showBushfireZones
+                    ? '#B91C1C' // Darker red on hover
+                    : 'grey.100',
+                boxShadow: !isBushfireEnabled ? 1 : 3
+              },
+              '&.Mui-disabled': {
+                backgroundColor: 'grey.300',
+                color: 'grey.500',
+              },
+              // Mobile responsive
+              '@media (max-width: 768px)': {
+                width: 36,
+                height: 36,
+              }
+            }}
+          >
+            <LocalFireDepartmentIcon fontSize="small" />
           </IconButton>
         </span>
       </Tooltip>

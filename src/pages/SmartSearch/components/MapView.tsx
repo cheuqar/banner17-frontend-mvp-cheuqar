@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, useMap, useMapEvents, FeatureGroup } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -10,10 +10,10 @@ import { toast } from 'react-toastify';
 import type { RootState } from '../../../store';
 import { useAppDispatch, useAppSelector } from '../../../store';
 import type { BaseProperty } from '../../../types/property-enhanced';
-import { setMapBounds, setManualMapMove, searchByBounds, loadMoreProperties, setMapPosition, setDrawMode, clearDrawnPolygons, addDrawnPolygon, computeDrawnPolygonUnion, performSearch, startAutoSearchCountdown, cancelAutoSearchCountdown, setShowCatchmentRadius, setActiveSpatialFilter, selectShowCatchmentRadius, clearMapCenter, setShowSuburbBoundaries, selectShowSuburbBoundaries } from '../../../store/slices/smartSearchSlice';
+import { setMapBounds, setManualMapMove, searchByBounds, loadMoreProperties, setMapPosition, setDrawMode, clearDrawnPolygons, addDrawnPolygon, computeDrawnPolygonUnion, performSearch, startAutoSearchCountdown, cancelAutoSearchCountdown, setShowCatchmentRadius, setActiveSpatialFilter, selectShowCatchmentRadius, clearMapCenter, setShowSuburbBoundaries, selectShowSuburbBoundaries, setShowHeritageSites, selectShowHeritageSites, setShowBushfireZones, selectShowBushfireZones, selectSearchMode, selectServerClusters } from '../../../store/slices/smartSearchSlice';
 // Phase 2.12.2: Import map bounds action for bbox schools tracking
 import { setMapBounds as setMapBoundsForBbox } from '../../../store/slices/smartSearch/mapBoundsSlice';
-import type { BBoxBounds } from '../../../store/slices/smartSearchSlice';
+import type { BBoxBounds, CellBounds } from '../../../store/slices/smartSearchSlice';
 import BottomFloatingControls from './BottomFloatingControls';
 import BottomRightControls from './BottomRightControls';
 import ActiveSpatialFilterBanner from './ActiveSpatialFilterBanner';
@@ -49,6 +49,13 @@ import FloatingMapControls from './FloatingMapControls';
 import SearchProgressIndicator from './SearchProgressIndicator';
 // NEW: Phase 2.38 - Suburb Boundaries Layer
 import SuburbBoundaryLayer from './SuburbBoundaryLayer';
+// NEW: Phase 2.55 - Heritage & Bushfire Overlay Layers
+import HeritageLayer from './HeritageLayer';
+import BushfireLayer from './BushfireLayer';
+// NEW: Phase 2.58 - Server cluster markers for clustered search mode
+import ServerClusterMarker from './ServerClusterMarker';
+// NEW: Phase 2.60 - Import searchProperties for fetching properties at cluster coordinate
+import { searchProperties } from '../../../services/smartSearchService';
 // Theme colors for dynamic marker styling
 import { selectThemeColors } from '../../../store/slices/themeSlice';
 // Phase 2.33: Map tile style management
@@ -662,6 +669,13 @@ const MapView: React.FC<MapViewProps> = ({
     const propertyPanelVisible = useAppSelector((state: RootState) => state.smartSearch.propertyPanelVisible);
     // NEW: Phase 2.38 - Suburb boundaries visibility toggle
     const showSuburbBoundaries = useAppSelector(selectShowSuburbBoundaries);
+    // NEW: Phase 2.55 - Heritage & Bushfire visibility toggles
+    const showHeritageSites = useAppSelector(selectShowHeritageSites);
+    const showBushfireZones = useAppSelector(selectShowBushfireZones);
+    // Phase 2.56: Search mode selector for clustered search
+    const searchMode = useAppSelector(selectSearchMode);
+    // Phase 2.58: Server clusters selector for clustered search mode
+    const serverClusters = useAppSelector(selectServerClusters);
 
     // Phase 2.12.2: Get map bounds and call useBboxSchools hook
     const mapBoundsFromRedux = useAppSelector(selectMapBounds);
@@ -744,7 +758,8 @@ const MapView: React.FC<MapViewProps> = ({
     // 1. displayedCount < totalCount (more properties available)
     // 2. displayedCount < 400 (not at max limit)
     // 3. Not currently loading
-    const showMoreButtonVisible = displayedCount < totalCount && displayedCount < 400 && !loading;
+    // 4. Phase 2.56 FIX: Not in clustered mode (clustered search returns all properties at once)
+    const showMoreButtonVisible = displayedCount < totalCount && displayedCount < 400 && !loading && searchMode !== 'clustered';
 
     // Calculate remaining count
     const remainingCount = Math.min(
@@ -827,6 +842,16 @@ const MapView: React.FC<MapViewProps> = ({
         dispatch(setShowSuburbBoundaries(!showSuburbBoundaries));
     };
 
+    // NEW: Phase 2.55 - Heritage sites toggle handler
+    const handleToggleHeritageSites = () => {
+        dispatch(setShowHeritageSites(!showHeritageSites));
+    };
+
+    // NEW: Phase 2.55 - Bushfire zones toggle handler
+    const handleToggleBushfireZones = () => {
+        dispatch(setShowBushfireZones(!showBushfireZones));
+    };
+
     // NEW: Drawing event handlers (Phase 2.7)
     const handleAddPolygon = async (geoJSON: any) => {
         // Add polygon to Redux
@@ -861,6 +886,114 @@ const MapView: React.FC<MapViewProps> = ({
         setClusterPopupData(null);
     };
 
+    // NEW: Phase 2.60 - Handle server cluster click at max zoom (show property popup)
+    // Phase 2.60.3: Added cellBounds parameter for accurate property fetch
+    const handleServerClusterMaxZoomClick = useCallback(async (lat: number, lng: number, cellBounds?: CellBounds) => {
+        console.log(`[MapView] Server cluster max zoom click at (${lat}, ${lng}), cellBounds:`, cellBounds);
+
+        // Find properties at this exact coordinate (with small tolerance for floating point)
+        const tolerance = 0.0001; // ~11 meters
+        const propertiesAtCoord = validProperties.filter((p: BaseProperty) => {
+            if (!p.latitude || !p.longitude) return false;
+            return Math.abs(p.latitude - lat) < tolerance && Math.abs(p.longitude - lng) < tolerance;
+        });
+
+        console.log(`[MapView] Found ${propertiesAtCoord.length} properties locally at this location`);
+
+        // Convert to ClusterProperty format helper
+        const convertToClusterProperty = (p: BaseProperty): ClusterProperty | null => {
+            if (typeof p.id !== 'string') return null;
+            return {
+                id: p.id,
+                address: p.address || '',
+                suburb: p.suburb,
+                state: p.state,
+                postcode: p.postcode,
+                price: typeof p.price === 'number' ? p.price : undefined,
+                bedrooms: p.bedrooms,
+                bathrooms: p.bathrooms,
+                car_spaces: p.car_spaces,
+                images: p.images?.map(img => typeof img === 'string' ? img : img.url),
+                primary_image: p.primary_image,
+            };
+        };
+
+        if (propertiesAtCoord.length > 0) {
+            // Use local properties
+            const clusterProperties: ClusterProperty[] = propertiesAtCoord
+                .map(convertToClusterProperty)
+                .filter((p): p is ClusterProperty => p !== null);
+
+            setClusterPopupData({
+                position: [lat, lng],
+                properties: clusterProperties
+            });
+        } else {
+            // No local properties found - fetch from API with exact cell bounds or tiny bbox
+            console.log('[MapView] No local properties found - fetching from API...');
+
+            try {
+                // Phase 2.60.3: Use exact cell bounds from backend if available (guarantees count match)
+                // Otherwise fall back to tiny bbox around cluster center (~110 meters)
+                let fetchBbox;
+                if (cellBounds) {
+                    console.log('[MapView] Using exact cell bounds for fetch:', cellBounds);
+                    fetchBbox = {
+                        north: cellBounds.north,
+                        south: cellBounds.south,
+                        east: cellBounds.east,
+                        west: cellBounds.west,
+                    };
+                } else {
+                    // Fallback: Create a tiny bbox around the cluster center
+                    const bboxOffset = 0.0005; // ~55 meters
+                    console.log('[MapView] No cell bounds - using fallback bbox with offset:', bboxOffset);
+                    fetchBbox = {
+                        north: lat + bboxOffset,
+                        south: lat - bboxOffset,
+                        east: lng + bboxOffset,
+                        west: lng - bboxOffset,
+                    };
+                }
+                const tinyBbox = fetchBbox;
+
+                const response = await searchProperties({
+                    bbox: tinyBbox,
+                    limit: 50, // Get all properties at this location
+                });
+
+                console.log(`[MapView] API returned ${response.properties?.length || 0} properties at cluster location`);
+
+                if (response.properties && response.properties.length > 0) {
+                    const clusterProperties: ClusterProperty[] = response.properties
+                        .map(convertToClusterProperty)
+                        .filter((p): p is ClusterProperty => p !== null);
+
+                    setClusterPopupData({
+                        position: [lat, lng],
+                        properties: clusterProperties
+                    });
+                } else {
+                    console.log('[MapView] API returned no properties for this location');
+                }
+            } catch (error) {
+                console.error('[MapView] Failed to fetch properties at cluster location:', error);
+            }
+        }
+    }, [validProperties]);
+
+    // NEW: Phase 2.60.2 - Handle server cluster zoom and immediate refresh
+    // This is called when user clicks a server cluster - zooms to max zoom (19) and refreshes immediately
+    const handleServerClusterZoomAndRefresh = useCallback((bounds: BBoxBounds) => {
+        console.log('[MapView] Server cluster zoom complete, triggering immediate refresh with bounds:', bounds);
+        // Cancel any pending auto-search countdown to prevent duplicate searches
+        dispatch(cancelAutoSearchCountdown());
+        // Update Redux bounds
+        dispatch(setMapBounds(bounds));
+        // Dispatch immediate search with the new bounds
+        dispatch(searchByBounds(bounds));
+    }, [dispatch]);
+
     // NEW: Phase 2.40 - Attach cluster click event listener via useEffect
     // We disabled default zoom/spiderfy and handle all cluster clicks manually
     useEffect(() => {
@@ -868,9 +1001,13 @@ const MapView: React.FC<MapViewProps> = ({
         if (!clusterGroup) return;
 
         const handleClusterClick = (e: any) => {
+            console.log('[MapView] Cluster click event triggered!', e);
             try {
                 const cluster = e.layer;
-                if (!cluster) return;
+                if (!cluster) {
+                    console.warn('[MapView] No cluster layer in event');
+                    return;
+                }
 
                 const childMarkers = cluster.getAllChildMarkers();
                 if (!childMarkers || childMarkers.length <= 1) return;
@@ -919,20 +1056,27 @@ const MapView: React.FC<MapViewProps> = ({
                         });
                     }
                 } else {
-                    // DIFFERENT COORDINATES: Zoom to bounds (default behavior)
-                    console.log('[MapView] Different-coordinate cluster clicked, zooming to bounds');
+                    // DIFFERENT COORDINATES: Zoom in by 1 level and center on cluster (Phase 2.60)
+                    // Get map from cluster's internal reference (more reliable than mapRef)
+                    const map = cluster._group?._map || cluster._map || mapRef?.current;
+                    if (map) {
+                        const clusterCenter = cluster.getLatLng();
+                        const currentZoom = map.getZoom() || 13;
+                        const newZoom = Math.min(currentZoom + 1, 19);
 
-                    // Use setTimeout to avoid race condition with React re-renders
-                    // This allows the current event cycle to complete before triggering zoom
-                    setTimeout(() => {
-                        try {
-                            if (cluster && cluster.zoomToBounds) {
-                                cluster.zoomToBounds({ padding: [20, 20] });
+                        console.log(`[MapView] Cluster clicked: zooming from ${currentZoom} to ${newZoom}, centering on cluster`);
+
+                        // Use setTimeout to avoid race condition with React re-renders
+                        setTimeout(() => {
+                            try {
+                                map.flyTo(clusterCenter, newZoom, { duration: 0.3 });
+                            } catch (zoomError) {
+                                console.warn('[MapView] Error during cluster zoom:', zoomError);
                             }
-                        } catch (zoomError) {
-                            console.warn('[MapView] Error during cluster zoom:', zoomError);
-                        }
-                    }, 0);
+                        }, 0);
+                    } else {
+                        console.warn('[MapView] Could not get map reference for zoom');
+                    }
                 }
             } catch (error) {
                 console.warn('[MapView] Error handling cluster click:', error);
@@ -940,6 +1084,7 @@ const MapView: React.FC<MapViewProps> = ({
         };
 
         // Attach event listener for cluster click
+        console.log('[MapView] Attaching clusterclick event listener to clusterGroup');
         clusterGroup.on('clusterclick', handleClusterClick);
 
         // Cleanup
@@ -1072,7 +1217,7 @@ const MapView: React.FC<MapViewProps> = ({
                 remainingCount={remainingCount}
             />
 
-            {/* NEW: Bottom Right Controls - Zoom + Draw (Phase 2.7) + Suburb Boundaries (Phase 2.38) */}
+            {/* NEW: Bottom Right Controls - Zoom + Draw (Phase 2.7) + Suburb Boundaries (Phase 2.38) + Heritage/Bushfire (Phase 2.55) */}
             <BottomRightControls
                 onZoomIn={handleZoomIn}
                 onZoomOut={handleZoomOut}
@@ -1083,6 +1228,10 @@ const MapView: React.FC<MapViewProps> = ({
                 showSuburbBoundaries={showSuburbBoundaries}
                 onToggleSuburbBoundaries={handleToggleSuburbBoundaries}
                 currentZoomLevel={currentZoomLevel}
+                showHeritageSites={showHeritageSites}
+                onToggleHeritageSites={handleToggleHeritageSites}
+                showBushfireZones={showBushfireZones}
+                onToggleBushfireZones={handleToggleBushfireZones}
             />
 
             <ErrorBoundary fallbackMessage="Map temporarily unavailable">
@@ -1108,6 +1257,12 @@ const MapView: React.FC<MapViewProps> = ({
 
                     {/* NEW: Phase 2.38 - Suburb Boundaries Layer (rendered below all other layers) */}
                     <SuburbBoundaryLayer mapBounds={mapBounds} zoomLevel={currentZoomLevel} />
+
+                    {/* NEW: Phase 2.55 - Heritage Sites Layer (rendered below property markers) */}
+                    <HeritageLayer mapBounds={mapBounds} zoomLevel={currentZoomLevel} />
+
+                    {/* NEW: Phase 2.55 - Bushfire Prone Land Layer (rendered below property markers) */}
+                    <BushfireLayer mapBounds={mapBounds} zoomLevel={currentZoomLevel} />
 
                     {/* NEW: Phase 2.10.7.5 - Map ref provider for school centering */}
                     <MapRefProvider mapRef={mapRef} />
@@ -1259,6 +1414,20 @@ const MapView: React.FC<MapViewProps> = ({
                             );
                         })}
                     </MarkerClusterGroup>
+
+                    {/* NEW: Phase 2.58 - Server-side cluster markers for clustered search mode */}
+                    {/* Phase 2.60: Added onMaxZoomClick to show property popup at zoom 19 */}
+                    {/* Phase 2.60.1: Added themeColor for consistent teardrop marker styling */}
+                    {/* Phase 2.60.2: Added onZoomAndRefresh for immediate refresh after zoom-to-max */}
+                    {searchMode === 'clustered' && serverClusters?.map((cluster) => (
+                        <ServerClusterMarker
+                            key={cluster.id}
+                            cluster={cluster}
+                            onMaxZoomClick={handleServerClusterMaxZoomClick}
+                            onZoomAndRefresh={handleServerClusterZoomAndRefresh}
+                            themeColor={themeColors.primaryDark}
+                        />
+                    ))}
 
                     {/* NEW: Phase 2.40 - Cluster popup for same-coordinate properties */}
                     {clusterPopupData && (

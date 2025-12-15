@@ -12,7 +12,7 @@ import SpatialFilterConflictDialog from './components/SpatialFilterConflictDialo
 import SearchErrorAlert from './components/SearchErrorAlert'; // Phase 2.5.10
 // Phase 2.17.5 FIX: Removed FloatingResultsButton import (now in FloatingMapControls)
 import { useSmartSearch } from './hooks/useSmartSearch';
-import { performSearch, loadMoreProperties, selectPropertyPanelVisible, MAX_PROPERTIES_LIMIT, type Amenity } from '../../store/slices/smartSearchSlice';
+import { performSearch, loadMoreProperties, selectPropertyPanelVisible, selectSearchMode, MAX_PROPERTIES_LIMIT, type Amenity } from '../../store/slices/smartSearchSlice';
 import type { RootState, AppDispatch } from '../../store';
 import type { School } from '../../types/smartSearch';
 import { useAppSelector } from '../../store';
@@ -156,6 +156,8 @@ const SmartSearchPage: React.FC = () => {
     const hasMore = totalCount > properties.length;
     // Phase 2.46 FIX: Selector for spatial filter to skip progressive loading during catchment searches
     const activeSpatialFilter = useSelector((state: RootState) => state.smartSearch.activeSpatialFilter);
+    // Phase 2.56: Selector for search mode to skip progressive loading during clustered searches
+    const searchMode = useAppSelector(selectSearchMode);
 
     // Phase 2.28.7 FIX: Serialize array to prevent infinite re-renders
     // Arrays create new references on every Redux update, causing useEffect to trigger infinitely
@@ -226,14 +228,19 @@ const SmartSearchPage: React.FC = () => {
         // 7. Phase 2.46 FIX: Skip progressive loading for school catchment searches
         //    Backend returns incorrect total_count that doesn't reflect catchment-filtered count,
         //    causing unnecessary second API call. All catchment-filtered results are returned in first call.
+        // 8. Phase 2.56 FIX: Skip progressive loading for clustered searches
+        //    Clustered search returns server-side grouped properties; progressive loading would
+        //    call standard search API and double-fetch properties incorrectly.
         const isSchoolCatchmentSearch = activeSpatialFilter === 'schoolCatchment';
+        const isClusteredSearch = searchMode === 'clustered';
         const shouldLoadMore = !loading &&
             !searchPending &&
             hasMore &&
             properties.length > 0 &&
             properties.length < MAX_PROPERTIES_LIMIT &&
             initialSearchDispatched.current &&
-            !isSchoolCatchmentSearch;
+            !isSchoolCatchmentSearch &&
+            !isClusteredSearch;
 
         // Debug: Log current state for progressive loading (less verbose)
         if (shouldLoadMore) {
@@ -254,6 +261,16 @@ const SmartSearchPage: React.FC = () => {
             });
         }
 
+        // Phase 2.56 FIX: Log when progressive loading is skipped for clustered searches
+        if (isClusteredSearch && hasMore && !loading && !searchPending) {
+            console.log('[SmartSearch] Progressive loading SKIPPED - clustered search mode active:', {
+                propertiesLength: properties.length,
+                totalCount,
+                searchMode,
+                reason: 'Clustered search returns server-side grouped properties; progressive loading not applicable',
+            });
+        }
+
         if (shouldLoadMore) {
             // Small delay to prevent rapid-fire requests and allow UI to render
             const loadMoreTimer = setTimeout(() => {
@@ -268,7 +285,7 @@ const SmartSearchPage: React.FC = () => {
 
             return () => clearTimeout(loadMoreTimer);
         }
-    }, [properties.length, hasMore, searchPending, loading, totalCount, dispatch, activeSpatialFilter]);
+    }, [properties.length, hasMore, searchPending, loading, totalCount, dispatch, activeSpatialFilter, searchMode]);
 
     // Feature 003: handleSearch function removed - SearchHeader manages its own address search
 

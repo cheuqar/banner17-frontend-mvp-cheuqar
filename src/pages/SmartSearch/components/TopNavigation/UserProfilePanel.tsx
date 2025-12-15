@@ -52,12 +52,15 @@ import MapIcon from '@mui/icons-material/Map';
 import { useAppDispatch, useAppSelector } from '../../../../store';
 import { setTheme, selectCurrentTheme, type ThemeType } from '../../../../store/slices/themeSlice';
 import { setMapTileStyle, selectCurrentMapStyle, selectAllTileConfigs, type MapTileStyle } from '../../../../store/slices/mapTileStyleSlice';
+import { selectSearchMode, setSearchMode } from '../../../../store/slices/smartSearchSlice';
+import SearchIcon from '@mui/icons-material/Search';
 
 interface UserProfilePanelProps {
   open: boolean;
   onClose: () => void;
   onMenuItemClick: (item: 'history' | 'saved' | 'comparisons' | 'settings' | 'signout') => void;
   versionCode?: string;
+  settingsOnly?: boolean; // When true, only show settings (Theme, Map Style, Search Mode) without auth-required items
 }
 
 interface MenuItem {
@@ -79,6 +82,7 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
   onClose,
   onMenuItemClick,
   versionCode = 'v2.31.0',
+  settingsOnly = false,
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -86,6 +90,7 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
   const currentTheme = useAppSelector(selectCurrentTheme);
   const currentMapStyle = useAppSelector(selectCurrentMapStyle);
   const allTileConfigs = useAppSelector(selectAllTileConfigs);
+  const searchMode = useAppSelector(selectSearchMode);
 
   /**
    * Handle theme change
@@ -105,6 +110,17 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
     (event: any) => {
       const newStyle = event.target.value as MapTileStyle;
       dispatch(setMapTileStyle(newStyle));
+    },
+    [dispatch]
+  );
+
+  /**
+   * Handle search mode change (Phase 2.56)
+   */
+  const handleSearchModeChange = useCallback(
+    (event: any) => {
+      const newMode = event.target.value as 'standard' | 'clustered';
+      dispatch(setSearchMode(newMode));
     },
     [dispatch]
   );
@@ -190,7 +206,38 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
           backgroundColor: '#ffffff',
         }}
       >
-        {/* Top Menu Items */}
+        {/* Settings-Only Header */}
+        {settingsOnly && (
+          <Box
+            sx={{
+              padding: '16px',
+              borderBottom: '1px solid #e0e0e0',
+            }}
+          >
+            <Typography
+              variant="h6"
+              sx={{
+                fontSize: '18px',
+                fontWeight: 600,
+                color: '#0b2d2c',
+              }}
+            >
+              Settings
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: '12px',
+                color: '#666666',
+                marginTop: '4px',
+              }}
+            >
+              Customize your experience
+            </Typography>
+          </Box>
+        )}
+
+        {/* Top Menu Items - Hidden when settingsOnly */}
         <List
           sx={{
             flex: 1,
@@ -198,7 +245,7 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
             overflow: 'auto',
           }}
         >
-          {topMenuItems.map((item, index) => (
+          {!settingsOnly && topMenuItems.map((item, index) => (
             <ListItem
               key={item.id}
               disablePadding
@@ -404,9 +451,57 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
               </Select>
             </FormControl>
           </Box>
+
+          {/* Search Mode Selector Section (Phase 2.56) */}
+          <Box
+            sx={{
+              padding: '16px',
+              borderTop: '1px solid #e0e0e0',
+              borderBottom: '1px solid #e0e0e0',
+            }}
+          >
+            <FormControl fullWidth size="small">
+              <InputLabel id="search-mode-select-label" sx={{ fontSize: '14px', color: '#0b2d2c' }}>
+                Search Mode
+              </InputLabel>
+              <Select
+                labelId="search-mode-select-label"
+                id="search-mode-select"
+                value={searchMode}
+                label="Search Mode"
+                onChange={handleSearchModeChange}
+                aria-label="Select search mode"
+                sx={{
+                  fontSize: '14px',
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#e0e0e0',
+                  },
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#0b2d2c',
+                  },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                    borderColor: '#0b2d2c',
+                  },
+                }}
+              >
+                <MenuItem value="standard">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SearchIcon sx={{ fontSize: '16px', color: '#0b2d2c' }} />
+                    <Typography fontSize="14px">Standard Search</Typography>
+                  </Box>
+                </MenuItem>
+                <MenuItem value="clustered">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <SearchIcon sx={{ fontSize: '16px', color: '#4caf50' }} />
+                    <Typography fontSize="14px">Clustered Search (Beta)</Typography>
+                  </Box>
+                </MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         </List>
 
-        {/* Sticky Bottom Section */}
+        {/* Sticky Bottom Section - Hidden when settingsOnly (except version) */}
         <Box
           sx={{
             padding: '16px',
@@ -416,7 +511,8 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
             gap: '8px',
           }}
         >
-          {bottomMenuItems.map((item) => (
+          {/* Auth-required menu items - only show when not settingsOnly */}
+          {!settingsOnly && bottomMenuItems.map((item) => (
             <ListItemButton
               key={item.id}
               onClick={item.action}
@@ -462,9 +558,9 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({
           {/* Version Code */}
           <Box
             sx={{
-              marginTop: '12px',
+              marginTop: settingsOnly ? '0px' : '12px',
               paddingTop: '12px',
-              borderTop: '1px solid #e0e0e0',
+              borderTop: settingsOnly ? 'none' : '1px solid #e0e0e0',
               textAlign: 'center',
             }}
           >

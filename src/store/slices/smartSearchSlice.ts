@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
-import { searchProperties, fetchSchools as fetchSchoolsService, fetchAmenities as fetchAmenitiesService } from '../../services/smartSearchService';
+import { searchProperties, searchPropertiesClustered, fetchSchools as fetchSchoolsService, fetchAmenities as fetchAmenitiesService } from '../../services/smartSearchService';
 import type { SearchFilters } from '../../services/smartSearchService';
 import type { BaseProperty } from '../../types/property-enhanced';
 import { computeCatchmentUnion } from '../../utils/catchmentUnion';
@@ -137,6 +137,26 @@ export interface AmenitiesState {
   showAmenitiesOnMap: boolean; // Controls marker visibility
 }
 
+// Phase 2.60.3: Cell bounds for accurate property fetch
+export interface CellBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
+// Phase 2.58: Server-side cluster for clustered search mode
+export interface ServerCluster {
+  id: string;
+  count: number;
+  center: {
+    latitude: number;
+    longitude: number;
+  };
+  // Phase 2.60.3: Exact grid cell boundaries for accurate property fetch
+  cell_bounds?: CellBounds;
+}
+
 export interface SmartSearchState {
   mapControls: MapControlsState;
   viewMode: 'map' | 'list';
@@ -200,6 +220,13 @@ export interface SmartSearchState {
   filtersOverlayVisible: boolean;     // Filter drawer state (default: false)
   // NEW: Phase 2.38 - Suburb Boundaries Overlay
   showSuburbBoundaries: boolean;      // Toggle suburb boundary visualization on map (default: false)
+  // NEW: Phase 2.55 - Heritage & Bushfire Overlay Layers
+  showHeritageSites: boolean;         // Toggle heritage site visualization on map (default: false)
+  showBushfireZones: boolean;         // Toggle bushfire zone visualization on map (default: false)
+  // NEW: Phase 2.56 - Search Mode Switch (Standard vs Clustered API)
+  searchMode: 'standard' | 'clustered'; // Toggle between standard and clustered search API
+  // NEW: Phase 2.58 - Server-side clusters for clustered search mode
+  serverClusters: ServerCluster[]; // Server-computed clusters (count + center only, no property data)
 }
 
 const initialState: SmartSearchState = {
@@ -321,6 +348,13 @@ const initialState: SmartSearchState = {
   filtersOverlayVisible: false,       // Default: drawer closed
   // NEW: Phase 2.38 - Suburb Boundaries Overlay
   showSuburbBoundaries: false,        // Default: boundaries hidden
+  // NEW: Phase 2.55 - Heritage & Bushfire Overlay Layers
+  showHeritageSites: false,           // Default: heritage sites hidden
+  showBushfireZones: false,           // Default: bushfire zones hidden
+  // NEW: Phase 2.56 - Search Mode Switch
+  searchMode: 'standard',             // Default: standard search API
+  // NEW: Phase 2.58 - Server-side clusters
+  serverClusters: [],                 // Default: empty array
 };
 
 // Async thunk for performing property search
@@ -337,7 +371,7 @@ export const performSearch = createAsyncThunk(
 
     const filters = state.smartSearch.filters;
     const sortBy = state.smartSearch.sortBy;
-    const { mapBounds, searchBounds, userDefinedMapArea, schools, activeSpatialFilter, drawnPolygonUnion } = state.smartSearch;
+    const { mapBounds, searchBounds, userDefinedMapArea, schools, activeSpatialFilter, drawnPolygonUnion, searchMode, persistedMapZoom } = state.smartSearch;
 
     // FIX: Phase 2.14 - Read selected schools from schoolPanel slice (correct location)
     const selectedSchools = state.schoolPanel?.selectedSchools || [];
@@ -465,12 +499,25 @@ export const performSearch = createAsyncThunk(
     }
 
     try {
-      const result = await searchProperties(searchFilters);
+      // Phase 2.56: Use clustered search if mode is set to 'clustered'
+      let result;
+      if (searchMode === 'clustered' && searchFilters.bbox) {
+        console.log('[SmartSearch] Using CLUSTERED search mode with zoom:', persistedMapZoom);
+        result = await searchPropertiesClustered({
+          ...searchFilters,
+          zoom_level: persistedMapZoom || 12,
+          cluster_threshold: 5,
+        });
+      } else {
+        console.log('[SmartSearch] Using STANDARD search mode');
+        result = await searchProperties(searchFilters);
+      }
 
       // BugSnag: Breadcrumb on success
       leaveBreadcrumb('performSearch completed', {
         total_count: result.total_count,
         returned: result.properties?.length || 0,
+        searchMode: searchMode,
       }, 'state');
 
       return result;
@@ -544,7 +591,7 @@ export const searchByBounds = createAsyncThunk(
 
     const filters = state.smartSearch.filters;
     const sortBy = state.smartSearch.sortBy;
-    const { activeSpatialFilter, schools } = state.smartSearch;
+    const { activeSpatialFilter, schools, searchMode, persistedMapZoom } = state.smartSearch;
 
     // FIX: Phase 2.14 - Read selected schools from schoolPanel slice (correct location)
     const selectedSchools = state.schoolPanel?.selectedSchools || [];
@@ -610,7 +657,19 @@ export const searchByBounds = createAsyncThunk(
     }
 
     try {
-      const result = await searchProperties(searchFilters);
+      // Phase 2.56: Use clustered search if mode is set to 'clustered'
+      let result;
+      if (searchMode === 'clustered') {
+        console.log('[SearchByBounds] Using CLUSTERED search mode with zoom:', persistedMapZoom);
+        result = await searchPropertiesClustered({
+          ...searchFilters,
+          zoom_level: persistedMapZoom || 12,
+          cluster_threshold: 5,
+        });
+      } else {
+        console.log('[SearchByBounds] Using STANDARD search mode');
+        result = await searchProperties(searchFilters);
+      }
       // NEW: Phase 2.8 - Clear lock flag AFTER successful API call
       dispatch(setAutoSearchInitiated(false));
 
@@ -618,6 +677,7 @@ export const searchByBounds = createAsyncThunk(
       leaveBreadcrumb('searchByBounds completed', {
         total_count: result.total_count,
         returned: result.properties?.length || 0,
+        searchMode: searchMode,
       }, 'state');
 
       return result;
@@ -1707,6 +1767,20 @@ const smartSearchSlice = createSlice({
       state.showSuburbBoundaries = action.payload;
       console.log('[SuburbBoundaries] Set visibility:', action.payload);
     },
+    // NEW: Phase 2.55 - Heritage & Bushfire Overlay Layers
+    setShowHeritageSites: (state, action: PayloadAction<boolean>) => {
+      state.showHeritageSites = action.payload;
+      console.log('[HeritageSites] Set visibility:', action.payload);
+    },
+    setShowBushfireZones: (state, action: PayloadAction<boolean>) => {
+      state.showBushfireZones = action.payload;
+      console.log('[BushfireZones] Set visibility:', action.payload);
+    },
+    // NEW: Phase 2.56 - Search Mode Switch
+    setSearchMode: (state, action: PayloadAction<'standard' | 'clustered'>) => {
+      state.searchMode = action.payload;
+      console.log('[SearchMode] Changed to:', action.payload);
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -1725,12 +1799,16 @@ const smartSearchSlice = createSlice({
         // Phase 2.41 FIX: Reset pagination state to prevent stale offset in loadMoreProperties
         // When filters change, we need to start fresh - old offset causes "range not satisfiable" errors
         state.paginationOffset = 0;
-        state.properties = [];
-        state.totalCount = 0;
-        state.displayedCount = 0;
-        console.log('[performSearch.pending] Reducer executed - searchPending is now true, pagination reset', {
+        // Phase 2.57 FIX: Keep previous properties visible during loading
+        // Properties will be replaced atomically in fulfilled reducer
+        // This prevents markers from disappearing during refresh (better UX)
+        // state.properties = [];      // REMOVED - keep markers visible
+        // state.totalCount = 0;       // REMOVED - keep count visible
+        // state.displayedCount = 0;   // REMOVED - keep count visible
+        console.log('[performSearch.pending] Reducer executed - searchPending is now true, pagination reset, markers preserved', {
           after: state.searchPending,
           paginationOffset: state.paginationOffset,
+          propertiesKept: state.properties.length,
           timestamp: new Date().toISOString(),
         });
       })
@@ -1739,11 +1817,24 @@ const smartSearchSlice = createSlice({
         state.error = null; // Clear any previous errors on successful search
         state.properties = action.payload.properties;
         state.totalCount = action.payload.total_count;
-        state.displayedCount = action.payload.properties.length;
+        // Phase 2.56 FIX: In clustered mode, displayedCount should equal totalCount
+        // because clustered search returns ALL properties (as clusters + individuals)
+        // This prevents confusing "100 of 5000" display when clusters represent all data
+        if (state.searchMode === 'clustered') {
+          state.displayedCount = action.payload.total_count;
+          // Phase 2.58: Store server clusters for rendering
+          state.serverClusters = action.payload.clusters || [];
+        } else {
+          state.displayedCount = action.payload.properties.length;
+          // Clear server clusters in standard mode
+          state.serverClusters = [];
+        }
         // Phase 2.41 DEBUG: Log progressive loading relevant values
         console.log('[performSearch.fulfilled] Progressive loading values:', {
           propertiesLength: state.properties.length,
           totalCount: state.totalCount,
+          displayedCount: state.displayedCount,
+          searchMode: state.searchMode,
           hasMore: state.totalCount > state.properties.length,
           searchPending: false, // Will be set after this
           timestamp: new Date().toISOString(),
@@ -1786,16 +1877,29 @@ const smartSearchSlice = createSlice({
         state.searchPending = true;
         // Phase 2.41 FIX: Reset pagination state to prevent stale offset in loadMoreProperties
         state.paginationOffset = 0;
-        state.properties = [];
-        state.totalCount = 0;
-        state.displayedCount = 0;
+        // Phase 2.57 FIX: Keep previous properties visible during loading
+        // Properties will be replaced atomically in fulfilled reducer
+        // This prevents markers from disappearing during refresh (better UX)
+        // state.properties = [];      // REMOVED - keep markers visible
+        // state.totalCount = 0;       // REMOVED - keep count visible
+        // state.displayedCount = 0;   // REMOVED - keep count visible
       })
       .addCase(searchByBounds.fulfilled, (state, action) => {
         state.loading = false;
         state.error = null;
         state.properties = action.payload.properties;
         state.totalCount = action.payload.total_count;
-        state.displayedCount = action.payload.properties.length;
+        // Phase 2.56 FIX: In clustered mode, displayedCount should equal totalCount
+        // because clustered search returns ALL properties (as clusters + individuals)
+        if (state.searchMode === 'clustered') {
+          state.displayedCount = action.payload.total_count;
+          // Phase 2.58: Store server clusters for rendering
+          state.serverClusters = action.payload.clusters || [];
+        } else {
+          state.displayedCount = action.payload.properties.length;
+          // Clear server clusters in standard mode
+          state.serverClusters = [];
+        }
         state.paginationOffset = action.payload.properties.length;
         state.filtersApplied = action.payload.filters_applied;
         // Store the bounds used for this search
@@ -2026,6 +2130,11 @@ export const {
   setShowAmenitiesOnMap,
   // NEW: Phase 2.38 - Suburb Boundaries Overlay
   setShowSuburbBoundaries,
+  // NEW: Phase 2.55 - Heritage & Bushfire Overlay Layers
+  setShowHeritageSites,
+  setShowBushfireZones,
+  // NEW: Phase 2.56 - Search Mode Switch
+  setSearchMode,
 } = smartSearchSlice.actions;
 
 // Phase 2.10.1: Selectors for pagination state
@@ -2109,6 +2218,21 @@ export const selectSearchPending = (state: { smartSearch: SmartSearchState }) =>
 // Phase 2.38: Selector for suburb boundaries visibility
 export const selectShowSuburbBoundaries = (state: { smartSearch: SmartSearchState }) =>
   state.smartSearch.showSuburbBoundaries;
+
+// Phase 2.55: Selectors for heritage and bushfire layer visibility
+export const selectShowHeritageSites = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.showHeritageSites;
+
+export const selectShowBushfireZones = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.showBushfireZones;
+
+// Phase 2.56: Selector for search mode
+export const selectSearchMode = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.searchMode;
+
+// Phase 2.58: Selector for server-side clusters
+export const selectServerClusters = (state: { smartSearch: SmartSearchState }) =>
+  state.smartSearch.serverClusters;
 
 // Phase 2.45: Selectors for amenities layer visibility (used by MapLayerLegend)
 export const selectShowAmenitiesOnMap = (state: { smartSearch: SmartSearchState }) =>

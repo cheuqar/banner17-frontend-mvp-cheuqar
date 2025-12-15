@@ -27,11 +27,14 @@ import {
   Avatar,
   Tooltip,
   CircularProgress,
+  IconButton,
 } from '@mui/material';
+import SettingsIcon from '@mui/icons-material/Settings';
 import { useAuth } from '../../../../contexts/AuthContext';
 
 interface UserProfileButtonProps {
   onProfileClick: () => void;
+  onSettingsClick?: () => void; // For non-authenticated users to access settings
   isLoading?: boolean;
 }
 
@@ -43,6 +46,7 @@ interface UserProfileButtonProps {
  */
 export const UserProfileButton: React.FC<UserProfileButtonProps> = ({
   onProfileClick,
+  onSettingsClick,
   isLoading = false,
 }) => {
   const { user, userProfile, isAuthenticated } = useAuth();
@@ -145,37 +149,63 @@ export const UserProfileButton: React.FC<UserProfileButtonProps> = ({
     );
   }
 
-  // Unauthenticated: Show "Sign in" button with tooltip
+  // Unauthenticated: Show "Sign in" button with settings icon button
   return (
-    <Tooltip title="Sign in page coming soon">
-      <span>
-        <Button
-          disabled={true}
-          aria-label="Sign in to your account (coming soon)"
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      {/* Settings icon button - accessible without sign in */}
+      <Tooltip title="Settings (Theme, Map Style, Search Mode)">
+        <IconButton
+          onClick={onSettingsClick}
+          aria-label="Open settings panel"
           sx={{
-            fontSize: '15px',
-            fontWeight: 600,
-            color: '#999999',
+            width: 36,
+            height: 36,
+            color: '#0b2d2c',
             backgroundColor: 'transparent',
             border: '1px solid #e0e0e0',
             borderRadius: '8px',
-            padding: '8px 20px',
-            cursor: 'not-allowed',
-            textTransform: 'none',
-            transition: 'all 0.3s ease',
+            transition: 'all 0.2s ease',
             '&:hover': {
-              backgroundColor: 'transparent',
-              borderColor: '#e0e0e0',
-            },
-            '&:disabled': {
-              opacity: 0.5,
+              backgroundColor: 'rgba(11, 45, 44, 0.05)',
+              borderColor: '#0b2d2c',
             },
           }}
         >
-          Sign in
-        </Button>
-      </span>
-    </Tooltip>
+          <SettingsIcon sx={{ fontSize: 20 }} />
+        </IconButton>
+      </Tooltip>
+
+      {/* Disabled Sign in button */}
+      <Tooltip title="Sign in page coming soon">
+        <span>
+          <Button
+            disabled={true}
+            aria-label="Sign in to your account (coming soon)"
+            sx={{
+              fontSize: '15px',
+              fontWeight: 600,
+              color: '#999999',
+              backgroundColor: 'transparent',
+              border: '1px solid #e0e0e0',
+              borderRadius: '8px',
+              padding: '8px 20px',
+              cursor: 'not-allowed',
+              textTransform: 'none',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                backgroundColor: 'transparent',
+                borderColor: '#e0e0e0',
+              },
+              '&:disabled': {
+                opacity: 0.5,
+              },
+            }}
+          >
+            Sign in
+          </Button>
+        </span>
+      </Tooltip>
+    </Box>
   );
 };
 
